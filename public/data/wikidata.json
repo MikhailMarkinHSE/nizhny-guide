@@ -1,0 +1,363 @@
+{
+  "results": {
+    "bindings": [
+      {
+        "item": "http://www.wikidata.org/entity/Q148846",
+        "itemLabel": "Ла-7",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Lavochkin%20La-7%20%E2%80%9927%20white%E2%80%99%20%2825168790698%29.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%9B%D0%B0-7"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q155494",
+        "itemLabel": "БМП-1",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%91%D0%9C%D0%9F-1%20%D1%81%20%D1%83%D1%87%D0%B5%D0%B1%D0%BD%D0%BE%D0%B3%D0%BE%20%D0%BF%D0%BE%D0%BB%D0%B8%D0%B3%D0%BE%D0%BD%D0%B0%20%D0%90%D0%BB%D0%BC%D0%B0%D1%82%D0%B8%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE%20%D0%98%D0%BD%D1%81%D1%82%D0%B8%D1%82%D1%83%D1%82%D0%B0%20%D0%A1%D1%83%D1%85%D0%BE%D0%BF%D1%83%D1%82%D0%BD%D1%8B%D1%85%20%D0%92%D0%BE%D0%B9%D1%81%D0%BA.JPG",
+        "article": "https://ru.wikipedia.org/wiki/%D0%91%D0%9C%D0%9F-1"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q234069",
+        "itemLabel": "МиГ-27",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/MiG-27%20take%20off.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%9C%D0%B8%D0%93-27"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q266837",
+        "itemLabel": "76-мм дивизионная пушка образца 1942 года",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/ZiS3%20nn.jpg",
+        "article": "https://ru.wikipedia.org/wiki/76-%D0%BC%D0%BC_%D0%B4%D0%B8%D0%B2%D0%B8%D0%B7%D0%B8%D0%BE%D0%BD%D0%BD%D0%B0%D1%8F_%D0%BF%D1%83%D1%88%D0%BA%D0%B0_%D0%BE%D0%B1%D1%80%D0%B0%D0%B7%D1%86%D0%B0_1942_%D0%B3%D0%BE%D0%B4%D0%B0_(%D0%97%D0%98%D0%A1-3)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q477818",
+        "itemLabel": "БТР-80",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/BTR-80A%20%283%29.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%91%D0%A2%D0%A0-80"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q2344243",
+        "itemLabel": "ГАЗ-67Б",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Gaz-67.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%93%D0%90%D0%97-67%D0%91"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q2720752",
+        "itemLabel": "Т-34-85",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/T-34-85%20g%C3%B3ra%20RB.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A2-34-85"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q4073954",
+        "itemLabel": "БМ-13",
+        "inception": "1941-06-30T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Katyusha%20Rocket%20Launcher%20-%20Artillery%20Museum%20-%20St.%20Petersburg%20-%20Russia.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%91%D0%9C-13"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q4165515",
+        "itemLabel": "Дом культуры ГУВД (Нижний Новгород)",
+        "inception": "1929-01-01T00:00:00Z",
+        "architecturalStyleLabel": "конструктивизм",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Nizhny%20Novgorod.%20Chekist%20House.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D1%87%D0%B5%D0%BA%D0%B8%D1%81%D1%82%D0%B0_(%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9_%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q4165829",
+        "itemLabel": "Домик Петра I (Нижний Новгород)",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/NN%20Pochainskaya%20Street%2008-2016%20img2.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC%D0%B8%D0%BA_%D0%9F%D0%B5%D1%82%D1%80%D0%B0_I_(%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9_%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q4306041",
+        "itemLabel": "Музей-квартира А. М. Горького (Нижний Новгород)",
+        "inception": "1971-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9C%D1%83%D0%B7%D0%B5%D0%B9-%D0%BA%D0%B2%D0%B0%D1%80%D1%82%D0%B8%D1%80%D0%B0%20%D0%93%D0%BE%D1%80%D1%8C%D0%BA%D0%BE%D0%B3%D0%BE%20%D0%B2%20%D0%9D%D0%B8%D0%B6%D0%BD%D0%B5%D0%BC%20%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%D0%B5.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%9C%D1%83%D0%B7%D0%B5%D0%B9-%D0%BA%D0%B2%D0%B0%D1%80%D1%82%D0%B8%D1%80%D0%B0_%D0%90._%D0%9C._%D0%93%D0%BE%D1%80%D1%8C%D0%BA%D0%BE%D0%B3%D0%BE_(%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9_%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q4318666",
+        "itemLabel": "Нижегородский острог",
+        "inception": "1820-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9E%D1%81%D1%82%D1%80%D0%BE%D0%B3%20%D1%84%D0%B0%D1%81%D0%B0%D0%B4.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%9D%D0%B8%D0%B6%D0%B5%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%D1%81%D0%BA%D0%B8%D0%B9_%D0%BE%D1%81%D1%82%D1%80%D0%BE%D0%B3"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q4343271",
+        "itemLabel": "Памятник Н. А. Добролюбову (Нижний Новгород)",
+        "inception": "1985-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9%20%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%2C%D0%A2%D0%B5%D0%B0%D1%82%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D0%B0%D1%8F%20%D0%BF%D0%BB%D0%BE%D1%89%D0%B0%D0%B4%D1%8C%2C%20%D1%81%D0%BA%D0%B2%D0%B5%D1%80%2C%20%D0%BF%D0%B0%D0%BC%D1%8F%D1%82%D0%BD%D0%B8%D0%BA%20%D0%94%D0%BE%D0%B1%D1%80%D0%BE%D0%BB%D1%8E%D0%B1%D0%BE%D0%B2%D1%83.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%9F%D0%B0%D0%BC%D1%8F%D1%82%D0%BD%D0%B8%D0%BA_%D0%9D._%D0%90._%D0%94%D0%BE%D0%B1%D1%80%D0%BE%D0%BB%D1%8E%D0%B1%D0%BE%D0%B2%D1%83_(%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9_%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q4343426",
+        "itemLabel": "Памятник Я. М. Свердлову (Нижний Новгород)",
+        "inception": "1957-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9F%D0%B0%D0%BC%D1%8F%D1%82%D0%BD%D0%B8%D0%BA%20%D0%A1%D0%B2%D0%B5%D1%80%D0%B4%D0%BB%D0%BE%D0%B2%D1%83%2C%20%D0%B2%D0%B8%D0%B4%20%D1%81%D0%B1%D0%BE%D0%BA%D1%83.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%9F%D0%B0%D0%BC%D1%8F%D1%82%D0%BD%D0%B8%D0%BA_%D0%AF._%D0%9C._%D0%A1%D0%B2%D0%B5%D1%80%D0%B4%D0%BB%D0%BE%D0%B2%D1%83_(%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9_%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q4343468",
+        "itemLabel": "Памятник героям и жертвам революции 1905 года",
+        "inception": "1930-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9F%D0%BB%D0%BE%D1%89%D0%B0%D0%B4%D1%8C%20%D0%A1%D0%B2%D0%BE%D0%B1%D0%BE%D0%B4%D1%8B%20%D0%9C%D0%BE%D0%BD%D1%83%D0%BC%D0%B5%D0%BD%D1%82%20%D0%93%D0%B5%D1%80%D0%BE%D1%8F%D0%BC%20%D0%B8%20%D0%BC%D1%83%D1%87%D0%B5%D0%BD%D0%B8%D0%BA%D0%B0%D0%BC%20%D1%80%D0%B5%D0%B2%D0%BE%D0%BB%D1%8E%D1%86%D0%B8%D0%B8%201905%20%D0%B3.JPG",
+        "article": "https://ru.wikipedia.org/wiki/%D0%9F%D0%B0%D0%BC%D1%8F%D1%82%D0%BD%D0%B8%D0%BA_%D0%B3%D0%B5%D1%80%D0%BE%D1%8F%D0%BC_%D0%B8_%D0%B6%D0%B5%D1%80%D1%82%D0%B2%D0%B0%D0%BC_%D1%80%D0%B5%D0%B2%D0%BE%D0%BB%D1%8E%D1%86%D0%B8%D0%B8_1905_%D0%B3%D0%BE%D0%B4%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q78114681",
+        "itemLabel": "Дом Верениновых",
+        "inception": "1840-01-01T00:00:00Z",
+        "architecturalStyleLabel": "эклектика",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%98%D0%BB%D1%8C%D0%B8%D0%BD%D1%81%D0%BA%D0%B0%D1%8F%20%D0%B4%D0%BE%D0%BC%2079.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%92%D0%B5%D1%80%D0%B5%D0%BD%D0%B8%D0%BD%D0%BE%D0%B2%D1%8B%D1%85"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q79821202",
+        "itemLabel": "Усадьба А. И. Башкировой",
+        "inception": "1894-01-01T00:00:00Z",
+        "architecturalStyleLabel": "эклектика в русской архитектуре",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%A3%D1%81%D0%B0%D0%B4%D1%8C%D0%B1%D0%B0%20%D0%90.%D0%91%D0%B0%D1%88%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%BE%D0%B9%20%281%29.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A3%D1%81%D0%B0%D0%B4%D1%8C%D0%B1%D0%B0_%D0%90._%D0%98._%D0%91%D0%B0%D1%88%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%BE%D0%B9"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q83031644",
+        "itemLabel": "Дом Щелоковых",
+        "inception": "1820-01-01T00:00:00Z",
+        "architecturalStyleLabel": "русский классицизм",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%92%D0%B0%D1%80%D0%B2%D0%B0%D1%80%D1%81%D0%BA%D0%B0%D1%8F%208.%20%D0%9D.%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4.JPG",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%A9%D0%B5%D0%BB%D0%BE%D0%BA%D0%BE%D0%B2%D1%8B%D1%85"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q83394963",
+        "itemLabel": "Дом П. Д. Климова",
+        "inception": "1870-01-01T00:00:00Z",
+        "architectLabel": "Килевейн, Роберт Яковлевич",
+        "architecturalStyleLabel": "Русское деревянное зодчество",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%94%D0%BE%D0%BC%20%D0%B6%D0%B8%D0%BB%D0%BE%D0%B9%20%28%D0%9A%D0%BB%D0%B8%D0%BC%D0%BE%D0%B2%D0%B0%20%D0%9F.%D0%94.%29.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%9F._%D0%94._%D0%9A%D0%BB%D0%B8%D0%BC%D0%BE%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q83394963",
+        "itemLabel": "Дом П. Д. Климова",
+        "inception": "1870-01-01T00:00:00Z",
+        "architectLabel": "Килевейн, Роберт Яковлевич",
+        "architecturalStyleLabel": "эклектика в русской архитектуре",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%94%D0%BE%D0%BC%20%D0%B6%D0%B8%D0%BB%D0%BE%D0%B9%20%28%D0%9A%D0%BB%D0%B8%D0%BC%D0%BE%D0%B2%D0%B0%20%D0%9F.%D0%94.%29.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%9F._%D0%94._%D0%9A%D0%BB%D0%B8%D0%BC%D0%BE%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q85131535",
+        "itemLabel": "Дом С. С. Долганова",
+        "inception": "1843-01-01T00:00:00Z",
+        "architecturalStyleLabel": "эклектика в русской архитектуре",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%98%D0%BB%D1%8C%D0%B8%D0%BD%D1%81%D0%BA%D0%B0%D1%8F%2C%2050%2C%20%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9%20%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%A1._%D0%A1._%D0%94%D0%BE%D0%BB%D0%B3%D0%B0%D0%BD%D0%BE%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q85131535",
+        "itemLabel": "Дом С. С. Долганова",
+        "inception": "1843-01-01T00:00:00Z",
+        "architecturalStyleLabel": "русский классицизм",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%98%D0%BB%D1%8C%D0%B8%D0%BD%D1%81%D0%BA%D0%B0%D1%8F%2C%2050%2C%20%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9%20%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%A1._%D0%A1._%D0%94%D0%BE%D0%BB%D0%B3%D0%B0%D0%BD%D0%BE%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q86683481",
+        "itemLabel": "Доходный дом П. Ф. Ремлера",
+        "inception": "1897-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%94%D0%BE%D0%BC%2088%20%D0%BD%D0%B0%20%D0%98%D0%BB%D1%8C%D0%B8%D0%BD%D1%81%D0%BA%D0%BE%D0%B9.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D1%85%D0%BE%D0%B4%D0%BD%D1%8B%D0%B9_%D0%B4%D0%BE%D0%BC_%D0%9F._%D0%A4._%D0%A0%D0%B5%D0%BC%D0%BB%D0%B5%D1%80%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q86684474",
+        "itemLabel": "Усадьба И. И. Рудинского — А. П. Сергеева",
+        "inception": "1860-01-01T00:00:00Z",
+        "architecturalStyleLabel": "эклектика в русской архитектуре",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/NN%20BolPecherskaya%20Street%2008-2016%20img2.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A3%D1%81%D0%B0%D0%B4%D1%8C%D0%B1%D0%B0_%D0%98._%D0%98._%D0%A0%D1%83%D0%B4%D0%B8%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%E2%80%94_%D0%90._%D0%9F._%D0%A1%D0%B5%D1%80%D0%B3%D0%B5%D0%B5%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q86684473",
+        "itemLabel": "Усадьба Неустроевых — А. Я. Башкирова",
+        "architecturalStyleLabel": "эклектика в русской архитектуре",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/NN%20BolPecherskaya%20Street%2008-2016%20img5.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A3%D1%81%D0%B0%D0%B4%D1%8C%D0%B1%D0%B0_%D0%9D%D0%B5%D1%83%D1%81%D1%82%D1%80%D0%BE%D0%B5%D0%B2%D1%8B%D1%85_%E2%80%94_%D0%90._%D0%AF._%D0%91%D0%B0%D1%88%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q86684473",
+        "itemLabel": "Усадьба Неустроевых — А. Я. Башкирова",
+        "architecturalStyleLabel": "архитектура модерна",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/NN%20BolPecherskaya%20Street%2008-2016%20img5.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A3%D1%81%D0%B0%D0%B4%D1%8C%D0%B1%D0%B0_%D0%9D%D0%B5%D1%83%D1%81%D1%82%D1%80%D0%BE%D0%B5%D0%B2%D1%8B%D1%85_%E2%80%94_%D0%90._%D0%AF._%D0%91%D0%B0%D1%88%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q89180651",
+        "itemLabel": "Дом Е. А. Березина",
+        "inception": "1911-01-01T00:00:00Z",
+        "architecturalStyleLabel": "Русское деревянное зодчество",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%94%D0%BE%D0%BC%20%D0%91%D0%B5%D1%80%D0%B5%D0%B7%D0%B8%D0%BD%D0%B0.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%95._%D0%90._%D0%91%D0%B5%D1%80%D0%B5%D0%B7%D0%B8%D0%BD%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q89180651",
+        "itemLabel": "Дом Е. А. Березина",
+        "inception": "1911-01-01T00:00:00Z",
+        "architecturalStyleLabel": "архитектура модерна",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%94%D0%BE%D0%BC%20%D0%91%D0%B5%D1%80%D0%B5%D0%B7%D0%B8%D0%BD%D0%B0.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%95._%D0%90._%D0%91%D0%B5%D1%80%D0%B5%D0%B7%D0%B8%D0%BD%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q96359325",
+        "itemLabel": "Дом М. Е. Башкирова в Нижнем Новгороде",
+        "inception": "1892-01-01T00:00:00Z",
+        "architecturalStyleLabel": "эклектика в русской архитектуре",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%94%D0%BE%D0%BC%20%D0%91%D0%B0%D1%88%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%20%D0%B2%20%D0%BF%D0%B5%D1%80%D0%B5%D1%83%D0%BB%D0%BA%D0%B5%20%D0%9A%D0%B0%D0%B7%D0%B1%D0%B5%D0%BA%D1%81%D0%BA%D0%BE%D0%BC.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%9C._%D0%95._%D0%91%D0%B0%D1%88%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q97161367",
+        "itemLabel": "Дом Порхуновых",
+        "architecturalStyleLabel": "Русское деревянное зодчество",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9%20%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%2C%20%D1%83%D0%BB%D0%B8%D1%86%D0%B0%20%D0%9C%D0%B0%D0%BA%D1%81%D0%B8%D0%BC%D0%B0%20%D0%93%D0%BE%D1%80%D1%8C%D0%BA%D0%BE%D0%B3%D0%BE%2C%2074%20%281%29.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%9F%D0%BE%D1%80%D1%85%D1%83%D0%BD%D0%BE%D0%B2%D1%8B%D1%85"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q97161367",
+        "itemLabel": "Дом Порхуновых",
+        "architecturalStyleLabel": "эклектика в русской архитектуре",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9%20%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%2C%20%D1%83%D0%BB%D0%B8%D1%86%D0%B0%20%D0%9C%D0%B0%D0%BA%D1%81%D0%B8%D0%BC%D0%B0%20%D0%93%D0%BE%D1%80%D1%8C%D0%BA%D0%BE%D0%B3%D0%BE%2C%2074%20%281%29.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%9F%D0%BE%D1%80%D1%85%D1%83%D0%BD%D0%BE%D0%B2%D1%8B%D1%85"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q97163624",
+        "itemLabel": "Дом П. С. Зарембы",
+        "inception": "1810-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9D%D0%B8%D0%B6%D0%BD%D0%B8%D0%B9%20%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%2C%20%D1%83%D0%BB.%D0%91%D0%BE%D0%BB%D1%8C%D1%88%D0%B0%D1%8F%20%D0%9F%D0%B5%D1%87%D1%91%D1%80%D1%81%D0%BA%D0%B0%D1%8F%2C%2012%20%282009%D0%B3%29%20-%20panoramio.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%9F._%D0%A1._%D0%97%D0%B0%D1%80%D0%B5%D0%BC%D0%B1%D1%8B"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q97316207",
+        "itemLabel": "Жилой дом А. Н. Надольской",
+        "architecturalStyleLabel": "Русское деревянное зодчество",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%94%D0%BE%D0%BC%205%2C%20%D1%83%D0%BB%D0%B8%D1%86%D0%B0%20%D0%91%D0%BE%D0%BB%D1%8C%D1%88%D0%B8%D0%B5%20%D0%9E%D0%B2%D1%80%D0%B0%D0%B3%D0%B8.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%96%D0%B8%D0%BB%D0%BE%D0%B9_%D0%B4%D0%BE%D0%BC_%D0%90._%D0%9D._%D0%9D%D0%B0%D0%B4%D0%BE%D0%BB%D1%8C%D1%81%D0%BA%D0%BE%D0%B9"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q97316207",
+        "itemLabel": "Жилой дом А. Н. Надольской",
+        "architecturalStyleLabel": "эклектика в русской архитектуре",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%94%D0%BE%D0%BC%205%2C%20%D1%83%D0%BB%D0%B8%D1%86%D0%B0%20%D0%91%D0%BE%D0%BB%D1%8C%D1%88%D0%B8%D0%B5%20%D0%9E%D0%B2%D1%80%D0%B0%D0%B3%D0%B8.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%96%D0%B8%D0%BB%D0%BE%D0%B9_%D0%B4%D0%BE%D0%BC_%D0%90._%D0%9D._%D0%9D%D0%B0%D0%B4%D0%BE%D0%BB%D1%8C%D1%81%D0%BA%D0%BE%D0%B9"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q97660373",
+        "itemLabel": "Дом К. Н. Нарышкина",
+        "inception": "1909-01-01T00:00:00Z",
+        "architecturalStyleLabel": "Русское деревянное зодчество",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%A8%D0%B5%D0%B2%D1%87%D0%B5%D0%BD%D0%BA%D0%BE%2016.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%9A._%D0%9D._%D0%9D%D0%B0%D1%80%D1%8B%D1%88%D0%BA%D0%B8%D0%BD%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q97660373",
+        "itemLabel": "Дом К. Н. Нарышкина",
+        "inception": "1909-01-01T00:00:00Z",
+        "architecturalStyleLabel": "архитектура ретроспективизма",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%A8%D0%B5%D0%B2%D1%87%D0%B5%D0%BD%D0%BA%D0%BE%2016.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%9A._%D0%9D._%D0%9D%D0%B0%D1%80%D1%8B%D1%88%D0%BA%D0%B8%D0%BD%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q104117559",
+        "itemLabel": "Дом В. М. Рукавишникова",
+        "architectLabel": "Григорьев, Николай Дмитриевич",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%91%20%D0%9F%D0%B5%D1%87%D0%B5%D1%80%D1%81%D0%BA%D0%B0%D1%8F%2021.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%92._%D0%9C._%D0%A0%D1%83%D0%BA%D0%B0%D0%B2%D0%B8%D1%88%D0%BD%D0%B8%D0%BA%D0%BE%D0%B2%D0%B0"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q104512253",
+        "itemLabel": "Дом Ф. К. Добровольского",
+        "inception": "1880-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/%D0%9F%D1%80%D0%B0%D0%B2%D0%BE%D0%B5%20%D0%BA%D1%80%D1%8B%D0%BB%D0%BE%2C%20%D0%B4.%204%20%D0%BB%D0%B8%D1%82%D0%B5%D1%80%20%D0%901%2C%20%D0%9C%D0%B0%D0%BB%D0%B0%D1%8F%20%D0%9F%D0%BE%D0%BA%D1%80%D0%BE%D0%B2%D1%81%D0%BA%D0%B0%D1%8F.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC_%D0%A4._%D0%9A._%D0%94%D0%BE%D0%B1%D1%80%D0%BE%D0%B2%D0%BE%D0%BB%D1%8C%D1%81%D0%BA%D0%BE%D0%B3%D0%BE"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q701703",
+        "itemLabel": "37-мм автоматическая зенитная пушка образца 1939 года",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/61-K%20anti-aircraft%20gun%2C%202007.jpg",
+        "article": "https://ru.wikipedia.org/wiki/37-%D0%BC%D0%BC_%D0%B0%D0%B2%D1%82%D0%BE%D0%BC%D0%B0%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B0%D1%8F_%D0%B7%D0%B5%D0%BD%D0%B8%D1%82%D0%BD%D0%B0%D1%8F_%D0%BF%D1%83%D1%88%D0%BA%D0%B0_%D0%BE%D0%B1%D1%80%D0%B0%D0%B7%D1%86%D0%B0_1939_%D0%B3%D0%BE%D0%B4%D0%B0_(61-%D0%9A)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q706907",
+        "itemLabel": "85-мм зенитная пушка образца 1939 года",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/52k%20nn.jpg",
+        "article": "https://ru.wikipedia.org/wiki/85-%D0%BC%D0%BC_%D0%B7%D0%B5%D0%BD%D0%B8%D1%82%D0%BD%D0%B0%D1%8F_%D0%BF%D1%83%D1%88%D0%BA%D0%B0_%D0%BE%D0%B1%D1%80%D0%B0%D0%B7%D1%86%D0%B0_1939_%D0%B3%D0%BE%D0%B4%D0%B0_(52-%D0%9A)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q726541",
+        "itemLabel": "Александро-Невский собор (Нижний Новгород)",
+        "inception": "1881-01-01T00:00:00Z",
+        "architecturalStyleLabel": "русский стиль",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Saint%20Alexander%20Nevsky%20Cathedral%20in%20Nizhny%20Novgorod%20%28June%202024%29%20-%203.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80%D0%BE-%D0%9D%D0%B5%D0%B2%D1%81%D0%BA%D0%B8%D0%B9_%D0%9D%D0%BE%D0%B2%D0%BE%D1%8F%D1%80%D0%BC%D0%B0%D1%80%D0%BE%D1%87%D0%BD%D1%8B%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q726541",
+        "itemLabel": "Александро-Невский собор (Нижний Новгород)",
+        "inception": "1881-01-01T00:00:00Z",
+        "architecturalStyleLabel": "неороманский стиль",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Saint%20Alexander%20Nevsky%20Cathedral%20in%20Nizhny%20Novgorod%20%28June%202024%29%20-%203.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80%D0%BE-%D0%9D%D0%B5%D0%B2%D1%81%D0%BA%D0%B8%D0%B9_%D0%9D%D0%BE%D0%B2%D0%BE%D1%8F%D1%80%D0%BC%D0%B0%D1%80%D0%BE%D1%87%D0%BD%D1%8B%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q1134419",
+        "itemLabel": "Т-10",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/T-10%20tank.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A2-10"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q1564225",
+        "itemLabel": "С-13",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Russian%20stamp%20304%20S-13%201996.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A1-13"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q159927",
+        "itemLabel": "БТР-70",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/BTR70%20002.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%91%D0%A2%D0%A0-70"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q167277",
+        "itemLabel": "Аэро Л-29 Дельфин",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/CF15%20L-29%20ZK-SSU%20050415%2001.jpg",
+        "article": "https://ru.wikipedia.org/wiki/Aero_L-29_Delfin"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q167968",
+        "itemLabel": "БРДМ-2",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/BRDM-2%20on%20a%20military%20parade.JPEG",
+        "article": "https://ru.wikipedia.org/wiki/%D0%91%D0%A0%D0%94%D0%9C-2"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q618603",
+        "itemLabel": "БА-64",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/BA64%2026.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%91%D0%90-64"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q620543",
+        "itemLabel": "57-мм противотанковая пушка образца 1941 года",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Zis2%20nn.jpg",
+        "article": "https://ru.wikipedia.org/wiki/57-%D0%BC%D0%BC_%D0%BF%D1%80%D0%BE%D1%82%D0%B8%D0%B2%D0%BE%D1%82%D0%B0%D0%BD%D0%BA%D0%BE%D0%B2%D0%B0%D1%8F_%D0%BF%D1%83%D1%88%D0%BA%D0%B0_%D0%BE%D0%B1%D1%80%D0%B0%D0%B7%D1%86%D0%B0_1941_%D0%B3%D0%BE%D0%B4%D0%B0_(%D0%97%D0%98%D0%A1-2)"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q645903",
+        "itemLabel": "СУ-76",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/Su76%20nn.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A1%D0%A3-76"
+      },
+      {
+        "item": "http://www.wikidata.org/entity/Q682874",
+        "itemLabel": "С-60",
+        "inception": "1946-01-01T00:00:00Z",
+        "image": "http://commons.wikimedia.org/wiki/Special:FilePath/S-60-57mm-hatzerim-1.jpg",
+        "article": "https://ru.wikipedia.org/wiki/%D0%A1-60"
+      }
+    ]
+  }
+}
