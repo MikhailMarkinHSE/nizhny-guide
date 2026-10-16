@@ -378,24 +378,28 @@ const findWikipedia = (tag: string | undefined): WikipediaEntry | undefined => {
 
         (mapInstance as any)._showPopup = showPopup;
 
-        mapInstance.on('click', 'clusters', (e) => {
-          const features = mapInstance.queryRenderedFeatures(e.point, {
-            layers: ['clusters'],
-          });
-          const clusterId = features[0].properties?.cluster_id;
-          const source = mapInstance.getSource('historic') as maplibregl.GeoJSONSource;
-          source.getClusterExpansionZoom(clusterId).then((zoom) => {
-            const coords = (features[0].geometry as any).coordinates;
-            mapInstance.easeTo({ center: coords, zoom });
-          });
-        });
+  mapInstance.on('click', 'clusters', (e) => {
+  const features = mapInstance.queryRenderedFeatures(e.point, {
+    layers: ['clusters'],
+  });
+  const feature = features[0];
+  if (!feature) return;
+  const clusterId = feature.properties?.cluster_id;
+  const source = mapInstance.getSource('historic') as maplibregl.GeoJSONSource;
+  source.getClusterExpansionZoom(clusterId).then((zoom) => {
+    const coords = (feature.geometry as any).coordinates;
+    mapInstance.easeTo({ center: coords, zoom });
+  });
+});
 
         mapInstance.on('click', 'unclustered-point', (e) => {
-          const props = e.features?.[0].properties;
-          if (!props) return;
-          const coords = (e.features[0].geometry as any).coordinates.slice() as [number, number];
-          showPopup(props, coords);
-        });
+  const feature = e.features?.[0];
+  if (!feature) return;
+  const props = feature.properties;
+  if (!props) return;
+  const coords = (feature.geometry as any).coordinates.slice() as [number, number];
+  showPopup(props, coords);
+});
 
         for (const layer of ['clusters', 'unclustered-point']) {
           mapInstance.on('mouseenter', layer, () => {
