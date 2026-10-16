@@ -187,6 +187,7 @@ function App() {
   const map = useRef<maplibregl.Map | null>(null);
   const [nearby, setNearby] = useState<NearbyItem[]>([]);
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const featuresRef = useRef<any[]>([]);
 
   useEffect(() => {
@@ -228,10 +229,10 @@ function App() {
 
       try {
         const [osmRes, wdRes, wpRes] = await Promise.all([
-  fetch('/data/historic.geojson').then((r) => r.json()),
-  fetch('/data/wikidata.json').then((r) => r.json()),
-  fetch('/data/wikipedia.json').then((r) => r.json()),
-]);
+          fetch('/data/historic.geojson').then((r) => r.json()),
+          fetch('/data/wikidata.json').then((r) => r.json()),
+          fetch('/data/wikipedia.json').then((r) => r.json()),
+        ]);
 
         const wikidataMap = new Map<string, WikidataEntry>();
 
@@ -271,38 +272,34 @@ function App() {
           wikidataMap.set(qid, existing);
         }
 
-        // ===== Wikipedia: title → entry =====
-// Нормализуем ключи: убираем "(Нижний Новгород)", пробелы, регистр, ё→е
-const normalize = (s: string): string =>
-  s
-    .toLowerCase()
-    .replace(/\s*\(.*?\)\s*/g, '')
-    .replace(/ё/g, 'е')
-    .replace(/\s+/g, ' ')
-    .trim();
+        const normalize = (s: string): string =>
+          s
+            .toLowerCase()
+            .replace(/\s*\(.*?\)\s*/g, '')
+            .replace(/ё/g, 'е')
+            .replace(/\s+/g, ' ')
+            .trim();
 
-const wikipediaMap = new Map<string, WikipediaEntry>();
-for (const [title, entry] of Object.entries(wpRes as Record<string, WikipediaEntry>)) {
-  wikipediaMap.set(normalize(title), entry);
-  wikipediaMap.set(title, entry); // на случай точного совпадения
-}
+        const wikipediaMap = new Map<string, WikipediaEntry>();
+        for (const [title, entry] of Object.entries(
+          wpRes as Record<string, WikipediaEntry>
+        )) {
+          wikipediaMap.set(normalize(title), entry);
+          wikipediaMap.set(title, entry);
+        }
 
-console.log(`Wikipedia: ${Object.keys(wpRes).length} статей`);
-
-// Функция поиска аннотации по тегу OSM (например, "ru:Дом Рукавишниковых")
-const findWikipedia = (tag: string | undefined): WikipediaEntry | undefined => {
-  if (!tag) return undefined;
-  const [lang, ...rest] = tag.split(':');
-  if (!lang) return undefined;
-  const title = rest.join(':').split('#')[0].trim();
-  if (!title) return undefined;
-
-  return (
-    wikipediaMap.get(title) ||
-    wikipediaMap.get(normalize(title)) ||
-    undefined
-  );
-};
+        const findWikipedia = (
+          tag: string | undefined
+        ): WikipediaEntry | undefined => {
+          if (!tag) return undefined;
+          const [lang, ...rest] = tag.split(':');
+          if (!lang) return undefined;
+          const title = rest.join(':').split('#')[0].trim();
+          if (!title) return undefined;
+          return (
+            wikipediaMap.get(title) || wikipediaMap.get(normalize(title)) || undefined
+          );
+        };
 
         const filtered = {
           type: 'FeatureCollection' as const,
@@ -358,7 +355,6 @@ const findWikipedia = (tag: string | undefined): WikipediaEntry | undefined => {
           source: 'historic',
           filter: ['!', ['has', 'point_count']],
           paint: {
-            // Мемориалы — синие, здания — красные
             'circle-color': [
               'case',
               ['has', 'memorial'],
@@ -371,40 +367,46 @@ const findWikipedia = (tag: string | undefined): WikipediaEntry | undefined => {
           },
         });
 
-        const showPopup = (props: Record<string, string>, coords: [number, number]) => {
-  const qid = props.wikidata;
-  const wd = qid ? wikidataMap.get(qid) : undefined;
-  const wp = findWikipedia(props.wikipedia);
-  new maplibregl.Popup({ maxWidth: '320px' })
-    .setLngLat(coords)
-    .setHTML(buildPopupHTML(props, wd, wp))
-    .addTo(mapInstance);
-};
+        const showPopup = (
+          props: Record<string, string>,
+          coords: [number, number]
+        ) => {
+          const qid = props.wikidata;
+          const wd = qid ? wikidataMap.get(qid) : undefined;
+          const wp = findWikipedia(props.wikipedia);
+          new maplibregl.Popup({ maxWidth: '320px' })
+            .setLngLat(coords)
+            .setHTML(buildPopupHTML(props, wd, wp))
+            .addTo(mapInstance);
+        };
 
         (mapInstance as any)._showPopup = showPopup;
 
-  mapInstance.on('click', 'clusters', (e) => {
-  const features = mapInstance.queryRenderedFeatures(e.point, {
-    layers: ['clusters'],
-  });
-  const feature = features[0];
-  if (!feature) return;
-  const clusterId = feature.properties?.cluster_id;
-  const source = mapInstance.getSource('historic') as maplibregl.GeoJSONSource;
-  source.getClusterExpansionZoom(clusterId).then((zoom) => {
-    const coords = (feature.geometry as any).coordinates;
-    mapInstance.easeTo({ center: coords, zoom });
-  });
-});
+        mapInstance.on('click', 'clusters', (e) => {
+          const features = mapInstance.queryRenderedFeatures(e.point, {
+            layers: ['clusters'],
+          });
+          const feature = features[0];
+          if (!feature) return;
+          const clusterId = feature.properties?.cluster_id;
+          const source = mapInstance.getSource('historic') as maplibregl.GeoJSONSource;
+          source.getClusterExpansionZoom(clusterId).then((zoom) => {
+            const coords = (feature.geometry as any).coordinates;
+            mapInstance.easeTo({ center: coords, zoom });
+          });
+        });
 
         mapInstance.on('click', 'unclustered-point', (e) => {
-  const feature = e.features?.[0];
-  if (!feature) return;
-  const props = feature.properties;
-  if (!props) return;
-  const coords = (feature.geometry as any).coordinates.slice() as [number, number];
-  showPopup(props, coords);
-});
+          const feature = e.features?.[0];
+          if (!feature) return;
+          const props = feature.properties;
+          if (!props) return;
+          const coords = (feature.geometry as any).coordinates.slice() as [
+            number,
+            number
+          ];
+          showPopup(props, coords);
+        });
 
         for (const layer of ['clusters', 'unclustered-point']) {
           mapInstance.on('mouseenter', layer, () => {
@@ -424,12 +426,18 @@ const findWikipedia = (tag: string | undefined): WikipediaEntry | undefined => {
             .map((f: any) => ({
               props: f.properties,
               coords: f.geometry.coordinates as [number, number],
-              distance: haversine(lat, lng, f.geometry.coordinates[1], f.geometry.coordinates[0]),
+              distance: haversine(
+                lat,
+                lng,
+                f.geometry.coordinates[1],
+                f.geometry.coordinates[0]
+              ),
             }))
             .sort((a, b) => a.distance - b.distance)
             .slice(0, 10);
 
           setNearby(withDist);
+          setSheetOpen(true);
 
           mapInstance.flyTo({ center: [lng, lat], zoom: 16, duration: 800 });
         });
@@ -446,7 +454,52 @@ const findWikipedia = (tag: string | undefined): WikipediaEntry | undefined => {
     if (showPopup) {
       setTimeout(() => showPopup(item.props, item.coords), 1100);
     }
+    setSheetOpen(false);
   };
+
+  const sidebarContent = (
+    <>
+      {!userPos && (
+        <p className="hint">
+          Нажми кнопку <b>«Где я»</b> на карте — покажу, что интересного рядом.
+        </p>
+      )}
+      {userPos && nearby.length === 0 && (
+        <p className="hint">
+          Рядом ничего не нашлось. Попробуй переместиться ближе к центру.
+        </p>
+      )}
+      {nearby.length > 0 && (
+        <>
+          <h2>Рядом с тобой</h2>
+          <ul className="nearby-list">
+            {nearby.map((item, i) => {
+              const title =
+                item.props.name ||
+                item.props['name:ru'] ||
+                `${item.props['addr:street'] || ''} ${item.props['addr:housenumber'] || ''}`.trim() ||
+                'Историческое место';
+              const type = getObjectType(item.props);
+              const isMemorial = type === 'memorial';
+              return (
+                <li
+                  key={i}
+                  onClick={() => handleNearbyClick(item)}
+                  className={isMemorial ? 'is-memorial' : ''}
+                >
+                  <div className="nearby-title">{title}</div>
+                  <div className="nearby-distance">
+                    {isMemorial ? '🕯 ' : '🏛 '}
+                    {formatDistance(item.distance)}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </>
+  );
 
   return (
     <div className="app">
@@ -454,46 +507,20 @@ const findWikipedia = (tag: string | undefined): WikipediaEntry | undefined => {
         <h1>Нижний Новгород — путеводитель</h1>
       </header>
       <div className="content">
-        <aside className="sidebar">
-          {!userPos && (
-            <p className="hint">
-              Нажми кнопку <b>«Где я»</b> на карте справа — покажу, что интересного рядом.
-            </p>
-          )}
-          {userPos && nearby.length === 0 && (
-            <p className="hint">Рядом ничего не нашлось. Попробуй переместиться ближе к центру.</p>
-          )}
-          {nearby.length > 0 && (
-            <>
-              <h2>Рядом с тобой</h2>
-              <ul className="nearby-list">
-                {nearby.map((item, i) => {
-                  const title =
-                    item.props.name ||
-                    item.props['name:ru'] ||
-                    `${item.props['addr:street'] || ''} ${item.props['addr:housenumber'] || ''}`.trim() ||
-                    'Историческое место';
-                  const type = getObjectType(item.props);
-                  const isMemorial = type === 'memorial';
-                  return (
-                    <li
-                      key={i}
-                      onClick={() => handleNearbyClick(item)}
-                      className={isMemorial ? 'is-memorial' : ''}
-                    >
-                      <div className="nearby-title">{title}</div>
-                      <div className="nearby-distance">
-                        {isMemorial ? '🕯 ' : '🏛 '}
-                        {formatDistance(item.distance)}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-        </aside>
+        <aside className="sidebar">{sidebarContent}</aside>
         <div ref={mapContainer} className="map" />
+      </div>
+
+      {/* Мобильная шторка */}
+      <div className={`sheet ${sheetOpen ? 'sheet-open' : ''}`}>
+        <button
+          className="sheet-handle"
+          onClick={() => setSheetOpen((v) => !v)}
+          aria-label="Открыть список ближайших"
+        >
+          {sheetOpen ? '▼' : '▲'} Рядом с тобой
+        </button>
+        <div className="sheet-content">{sidebarContent}</div>
       </div>
     </div>
   );

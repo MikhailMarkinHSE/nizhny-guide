@@ -8,12 +8,14 @@ body,
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 .app {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 .header {
@@ -80,6 +82,10 @@ body,
   background: #f0f0f0;
 }
 
+.nearby-list li.is-memorial {
+  border-left-color: #3a86ff;
+}
+
 .nearby-title {
   font-weight: 500;
   margin-bottom: 4px;
@@ -95,6 +101,87 @@ body,
   min-width: 0;
 }
 
-.nearby-list li.is-memorial {
-  border-left-color: #3a86ff;
+/* ============ Мобильная шторка ============ */
+.sheet {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 8px 12px;
+  }
+
+  .header h1 {
+    font-size: 15px;
+  }
+
+  /* Скрываем боковую панель, показываем шторку */
+  .sidebar {
+    display: none;
+  }
+
+  .sheet {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    max-height: 70vh;
+    transform: translateY(calc(100% - 48px));
+    transition: transform 0.3s ease;
+    z-index: 10;
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sheet-open {
+    transform: translateY(0);
+  }
+
+  .sheet-handle {
+    flex-shrink: 0;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .sheet-content {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .sheet-content h2 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+  }
+
+  /* Увеличиваем кнопки карты для пальцев */
+  .maplibregl-ctrl-top-right .maplibregl-ctrl {
+    margin: 6px 6px 0 0;
+  }
+
+  .maplibregl-ctrl-group button {
+    width: 40px;
+    height: 40px;
+  }
 }
