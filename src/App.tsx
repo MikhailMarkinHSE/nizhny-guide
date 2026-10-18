@@ -68,7 +68,8 @@ function getObjectType(props: Record<string, string>): 'building' | 'memorial' |
 function buildPopupHTML(
   props: Record<string, string>,
   wd: WikidataEntry | undefined,
-  wp: WikipediaEntry | undefined
+  wp: WikipediaEntry | undefined,
+  story: string | undefined
 ): string {
   const type = getObjectType(props);
 
@@ -81,6 +82,7 @@ function buildPopupHTML(
 
   const parts: string[] = [`<h3>${title}</h3>`];
 
+  // 1. Приоритет: Википедия
   if (wp?.extract) {
     const short =
       wp.extract.length > 500
@@ -88,6 +90,12 @@ function buildPopupHTML(
         : wp.extract;
     parts.push(
       `<p style="color: #333; line-height: 1.5; margin: 8px 0;">${short}</p>`
+    );
+  } 
+  // 2. Если нет Википедии, но есть LLM-история
+  else if (story) {
+    parts.push(
+      `<p style="color: #333; line-height: 1.5; margin: 8px 0;">${story}</p>`
     );
   }
 
@@ -98,7 +106,8 @@ function buildPopupHTML(
     if (props['memorial:type']) {
       parts.push(`<p><b>Тип:</b> ${props['memorial:type']}</p>`);
     }
-    if (props.inscription && !wp?.extract) {
+    // Надпись показываем, если нет ни Википедии, ни LLM
+    if (props.inscription && !wp?.extract && !story) {
       parts.push(
         `<blockquote style="margin: 8px 0; padding: 6px 10px; border-left: 3px solid #e63946; background: #fafafa; font-style: italic; color: #444;">${props.inscription}</blockquote>`
       );
@@ -124,7 +133,8 @@ function buildPopupHTML(
       parts.push(`<p><b>Материал:</b> ${props.material}</p>`);
   }
 
-  if (props.description && !wp?.extract) {
+  // Описание из OSM — только если нет ни Википедии, ни LLM
+  if (props.description && !wp?.extract && !story) {
     parts.push(
       `<p style="color: #333; line-height: 1.45;">${props.description}</p>`
     );
@@ -202,7 +212,6 @@ function App() {
       zoom: 14,
     });
 
-    // Убираем компас (showCompass: false), оставляем только кнопки зума
     map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
     const geolocate = new maplibregl.GeolocateControl({
@@ -217,7 +226,6 @@ function App() {
     
     map.current.addControl(geolocate, 'top-right');
     
-    // Закрываем шторку при взаимодействии с картой
     const closeSheet = () => setSheetOpen(false);
     map.current.on('dragstart', closeSheet);
     map.current.on('click', closeSheet);
@@ -227,12 +235,14 @@ function App() {
       const mapInstance = map.current!;
 
       try {
-        const [osmRes, wdRes, wpRes] = await Promise.all([
+        const [osmRes, wdRes, wpRes, llmRes] = await Promise.all([
           fetch('/data/historic.geojson').then((r) => r.json()),
           fetch('/data/wikidata.json').then((r) => r.json()),
           fetch('/data/wikipedia.json').then((r) => r.json()),
+          fetch('/data/llm-stories.json').then((r) => r.json()),
         ]);
 
+        const storiesMap = llmRes as Record<string, string>;
         const wikidataMap = new Map<string, WikidataEntry>();
 
         for (const b of wdRes.results.bindings) {
@@ -373,9 +383,12 @@ function App() {
           const qid = props.wikidata;
           const wd = qid ? wikidataMap.get(qid) : undefined;
           const wp = findWikipedia(props.wikipedia);
+          const id = props['@id'] || (props as any).id;
+          const story = id ? storiesMap[id] : undefined;
+          
           new maplibregl.Popup({ maxWidth: '320px' })
             .setLngLat(coords)
-            .setHTML(buildPopupHTML(props, wd, wp))
+            .setHTML(buildPopupHTML(props, wd, wp, story))
             .addTo(mapInstance);
         };
 
@@ -437,7 +450,6 @@ function App() {
 
           setNearby(withDist);
 
-          // Открываем шторку ТОЛЬКО ОДИН РАЗ
           if (!hasAutoOpenedSheet.current) {
             setSheetOpen(true);
             hasAutoOpenedSheet.current = true;
