@@ -202,7 +202,8 @@ function App() {
       zoom: 14,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    // Убираем компас (showCompass: false), оставляем только кнопки зума
+    map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
     const geolocate = new maplibregl.GeolocateControl({
       positionOptions: {
@@ -216,9 +217,11 @@ function App() {
     
     map.current.addControl(geolocate, 'top-right');
     
-    // Закрываем шторку, если пользователь взаимодействует с картой
-    map.current.on('dragstart', () => setSheetOpen(false));
-    map.current.on('click', () => setSheetOpen(false));
+    // Закрываем шторку при взаимодействии с картой
+    const closeSheet = () => setSheetOpen(false);
+    map.current.on('dragstart', closeSheet);
+    map.current.on('click', closeSheet);
+    mapContainer.current.addEventListener('touchstart', closeSheet);
 
     map.current.on('load', async () => {
       const mapInstance = map.current!;
@@ -434,7 +437,7 @@ function App() {
 
           setNearby(withDist);
 
-          // Открываем шторку ТОЛЬКО при первой удачной геолокации
+          // Открываем шторку ТОЛЬКО ОДИН РАЗ
           if (!hasAutoOpenedSheet.current) {
             setSheetOpen(true);
             hasAutoOpenedSheet.current = true;
@@ -444,6 +447,12 @@ function App() {
         console.error('Ошибка загрузки данных:', err);
       }
     });
+
+    return () => {
+      if (mapContainer.current) {
+        mapContainer.current.removeEventListener('touchstart', closeSheet);
+      }
+    };
   }, []);
 
   const handleNearbyClick = (item: NearbyItem) => {
@@ -503,14 +512,13 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Нижний Новгород — путеводитель</h1>
+        <h1>Гвидон</h1>
       </header>
       <div className="content">
         <aside className="sidebar">{sidebarContent}</aside>
         <div ref={mapContainer} className="map" />
       </div>
 
-      {/* Мобильная шторка */}
       <div className={`sheet ${sheetOpen ? 'sheet-open' : ''}`}>
         <button
           className="sheet-handle"
