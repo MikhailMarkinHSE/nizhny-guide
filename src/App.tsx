@@ -5,7 +5,6 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css';
 
-// Обязательно: регистрируем воркер до создания карты
 setWorkerUrl(workerUrl);
 
 type WikidataEntry = {
@@ -56,7 +55,6 @@ function formatDistance(m: number): string {
   return `${(m / 1000).toFixed(1)} км`;
 }
 
-// Определяем тип объекта: здание, мемориал или прочее
 function getObjectType(props: Record<string, string>): 'building' | 'memorial' | 'other' {
   if (props.memorial || props['memorial:subject'] || props['memorial:type']) {
     return 'memorial';
@@ -67,7 +65,6 @@ function getObjectType(props: Record<string, string>): 'building' | 'memorial' |
   return 'other';
 }
 
-// Строим HTML для попапа
 function buildPopupHTML(
   props: Record<string, string>,
   wd: WikidataEntry | undefined,
@@ -84,7 +81,6 @@ function buildPopupHTML(
 
   const parts: string[] = [`<h3>${title}</h3>`];
 
-  // ===== АННОТАЦИЯ ИЗ ВИКИПЕДИИ (в самом верху — это главное) =====
   if (wp?.extract) {
     const short =
       wp.extract.length > 500
@@ -95,7 +91,6 @@ function buildPopupHTML(
     );
   }
 
-  // ===== МЕМОРИАЛ =====
   if (type === 'memorial') {
     if (props['memorial:subject']) {
       parts.push(`<p><b>Посвящён:</b> ${props['memorial:subject']}</p>`);
@@ -110,7 +105,6 @@ function buildPopupHTML(
     }
   }
 
-  // ===== ЗДАНИЕ =====
   if (type === 'building') {
     const year =
       wd?.inception || props['year_of_construction'] || props.start_date;
@@ -130,8 +124,6 @@ function buildPopupHTML(
       parts.push(`<p><b>Материал:</b> ${props.material}</p>`);
   }
 
-  // ===== ОБЩЕЕ =====
-  // Описание из OSM — только если нет аннотации из Википедии
   if (props.description && !wp?.extract) {
     parts.push(
       `<p style="color: #333; line-height: 1.45;">${props.description}</p>`
@@ -149,7 +141,6 @@ function buildPopupHTML(
     );
   }
 
-  // Фото: Викисклад > Википедия thumbnail
   const img = wd?.image || wp?.thumbnail;
   if (img) {
     parts.push(
@@ -157,7 +148,6 @@ function buildPopupHTML(
     );
   }
 
-  // Ссылки
   const links: string[] = [];
   if (wd?.article) {
     links.push(
@@ -189,6 +179,7 @@ function App() {
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const featuresRef = useRef<any[]>([]);
+  const hasAutoOpenedSheet = useRef(false);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
@@ -222,7 +213,12 @@ function App() {
       trackUserLocation: true,
       showAccuracyCircle: false,
     });
+    
     map.current.addControl(geolocate, 'top-right');
+    
+    // Закрываем шторку, если пользователь взаимодействует с картой
+    map.current.on('dragstart', () => setSheetOpen(false));
+    map.current.on('click', () => setSheetOpen(false));
 
     map.current.on('load', async () => {
       const mapInstance = map.current!;
@@ -437,9 +433,12 @@ function App() {
             .slice(0, 10);
 
           setNearby(withDist);
-          setSheetOpen(true);
 
-          mapInstance.flyTo({ center: [lng, lat], zoom: 16, duration: 800 });
+          // Открываем шторку ТОЛЬКО при первой удачной геолокации
+          if (!hasAutoOpenedSheet.current) {
+            setSheetOpen(true);
+            hasAutoOpenedSheet.current = true;
+          }
         });
       } catch (err) {
         console.error('Ошибка загрузки данных:', err);
