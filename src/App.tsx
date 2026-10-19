@@ -329,7 +329,7 @@ function App() {
       if (coords.length > 1) {
         const bounds = new maplibregl.LngLatBounds();
         coords.forEach((c) => bounds.extend(c));
-        map.current.fitBounds(bounds, { padding: { top: 80, bottom: 180, left: 40, right: 40 }, duration: 900 });
+        map.current.fitBounds(bounds, { padding: { top: 80, bottom: 200, left: 40, right: 40 }, duration: 900 });
       }
     } else {
       source.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } });
@@ -364,7 +364,7 @@ function App() {
     setNavDistance(null);
     setSelectedDetail(null);
     setIsSpeaking(false);
-    setSheetOpen(false);
+    setSheetOpen(false); // Закрываем шторку при старте
     stopSpeech();
 
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
@@ -644,10 +644,13 @@ function App() {
         <div ref={mapContainer} className="map" />
       </div>
 
-      <div className={`sheet ${sheetOpen && !navTarget ? 'sheet-open' : ''}`}>
-        <button className="sheet-handle" onClick={() => setSheetOpen((v) => !v)}>{sheetOpen ? '▼' : '▲'} Рядом с тобой</button>
-        <div className="sheet-content">{sidebarContent}</div>
-      </div>
+      {/* Показываем шторку ТОЛЬКО если не включена навигация */}
+      {!navTarget && (
+        <div className={`sheet ${sheetOpen ? 'sheet-open' : ''}`}>
+          <button className="sheet-handle" onClick={() => setSheetOpen((v) => !v)}>{sheetOpen ? '▼' : '▲'} Рядом с тобой</button>
+          <div className="sheet-content">{sidebarContent}</div>
+        </div>
+      )}
 
       {selectedDetail && !navTarget && (
         <div className="detail-card">
