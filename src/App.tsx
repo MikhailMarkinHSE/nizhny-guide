@@ -137,69 +137,38 @@ function generateFallbackStory(props: Record<string, string>, type: string): str
 
 // ---- НОВЫЙ попап ----
 function buildPopupHTML(
-  props: Record<string, string>,
-  wd: WikidataEntry | undefined,
-  wp: WikipediaEntry | undefined,
-  story: string | undefined
+  props: Record<string, string>, wd: WikidataEntry | undefined, wp: WikipediaEntry | undefined, story: string | undefined
 ): { html: string; text: string } {
   const type = getObjectType(props);
+  const title = wd?.label || props.name || props['name:ru'] || `${props['addr:street'] || ''} ${props['addr:housenumber'] || ''}`.trim() || (type === 'memorial' ? 'Мемориал' : 'Историческое место');
 
-  const title =
-    wd?.label ||
-    props.name ||
-    props['name:ru'] ||
-    `${props['addr:street'] || ''} ${props['addr:housenumber'] || ''}`.trim() ||
-    (type === 'memorial' ? 'Мемориал' : 'Историческое место');
+  // Достаем стиль для бейджа
+  const style = wd?.style || props['building:architecture'];
+  const styleBadge = style ? `<span class="badge">${style}</span>` : '';
 
-  // Основной рассказ (по приоритету)
   let mainStory = '';
-  if (wp?.extract) {
-    mainStory = wp.extract.length > 500
-      ? wp.extract.slice(0, 500).trim() + '…'
-      : wp.extract;
-  } else if (story) {
-    mainStory = story;
-  } else if (props.description) {
-    mainStory = props.description;
-  } else if (props.inscription) {
-    mainStory = `«${props.inscription}»`;
-  } else {
-    mainStory = generateFallbackStory(props, type);
-  }
+  if (wp?.extract) mainStory = wp.extract.length > 500 ? wp.extract.slice(0, 500).trim() + '…' : wp.extract;
+  else if (story) mainStory = story;
+  else if (props.description) mainStory = props.description;
+  else if (props.inscription) mainStory = `«${props.inscription}»`;
+  else mainStory = generateFallbackStory(props, type);
 
-  // Текст для озвучки: заголовок + рассказ
   const spokenText = `${title}. ${mainStory}`;
-
-  // ---- Сухие факты (в раскрывающемся блоке) ----
   const facts: string[] = [];
 
   if (type === 'building') {
     const year = wd?.inception || props['year_of_construction'] || props.start_date;
     if (year) facts.push(`<div class="fact"><span class="fact-label">Год</span><span class="fact-value">${formatYear(year)}</span></div>`);
-
     const architect = wd?.architect || props.architect;
     if (architect) facts.push(`<div class="fact"><span class="fact-label">Архитектор</span><span class="fact-value">${architect}</span></div>`);
-
-    const style = wd?.style || props['building:architecture'];
-    if (style) facts.push(`<div class="fact"><span class="fact-label">Стиль</span><span class="fact-value">${style}</span></div>`);
-
+    // Стиль уже вынесли в бейдж, в фактах дублировать не будем
     if (props['building:levels']) facts.push(`<div class="fact"><span class="fact-label">Этажей</span><span class="fact-value">${props['building:levels']}</span></div>`);
   }
-
-  if (type === 'memorial' && props['memorial:subject']) {
-    facts.push(`<div class="fact"><span class="fact-label">Посвящён</span><span class="fact-value">${props['memorial:subject']}</span></div>`);
-  }
-
-  if (props['addr:street']) {
-    facts.push(`<div class="fact"><span class="fact-label">Адрес</span><span class="fact-value">${props['addr:street']}, ${props['addr:housenumber'] || ''}</span></div>`);
-  }
-
-  if (props['heritage:name'] || props.heritage) {
-    facts.push(`<div class="fact"><span class="fact-label">Наследие</span><span class="fact-value">${props['heritage:name'] || props.heritage}</span></div>`);
-  }
+  if (type === 'memorial' && props['memorial:subject']) facts.push(`<div class="fact"><span class="fact-label">Посвящён</span><span class="fact-value">${props['memorial:subject']}</span></div>`);
+  if (props['addr:street']) facts.push(`<div class="fact"><span class="fact-label">Адрес</span><span class="fact-value">${props['addr:street']}, ${props['addr:housenumber'] || ''}</span></div>`);
+  if (props['heritage:name'] || props.heritage) facts.push(`<div class="fact"><span class="fact-label">Наследие</span><span class="fact-value">${props['heritage:name'] || props.heritage}</span></div>`);
 
   const img = wd?.image || wp?.thumbnail;
-
   const links: string[] = [];
   if (wd?.article) links.push(`<a href="${wd.article}" target="_blank" rel="noopener">Википедия →</a>`);
   else if (wp?.url) links.push(`<a href="${wp.url}" target="_blank" rel="noopener">Читать полностью →</a>`);
@@ -209,7 +178,10 @@ function buildPopupHTML(
   const html = `
     <div class="popup">
       <div class="popup-header">
-        <h3 class="popup-title">${title}</h3>
+        <div class="popup-title-wrap">
+          <h3 class="popup-title">${title}</h3>
+          ${styleBadge}
+        </div>
         <button onclick="window.stopSpeech()" class="popup-stop" title="Остановить">⏹</button>
       </div>
       <p class="popup-story">${mainStory}</p>
@@ -226,7 +198,6 @@ function buildPopupHTML(
       <div class="spoken-text" style="display:none;">${spokenText}</div>
     </div>
   `;
-
   return { html, text: spokenText };
 }
 
