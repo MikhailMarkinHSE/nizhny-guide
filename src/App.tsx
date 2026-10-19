@@ -7,30 +7,20 @@ import './App.css';
 
 // Функция для озвучки текста (голосовой Гвидон)
 function speakText(text: string) {
-  if (!('speechSynthesis' in window)) {
-    console.error('Браузер не поддерживает озвучку');
-    return;
-  }
+  if (!('speechSynthesis' in window)) return;
 
+  // Останавливаем предыдущую озвучку
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ru-RU'; 
-  utterance.rate = 1.0;     
-  utterance.pitch = 1.0;    
-  
-  // Ищем русский голос
-  const voices = window.speechSynthesis.getVoices();
-  console.log('Доступные голоса:', voices); // Выведет список в консоль браузера
-  
-  const ruVoice = voices.find(v => v.lang === 'ru-RU' || v.lang.startsWith('ru'));
-  if (ruVoice) {
-    utterance.voice = ruVoice;
-  } else {
-    console.warn('Русский голос не найден! Будет использован голос по умолчанию.');
-  }
-  
-  window.speechSynthesis.speak(utterance);
+  utterance.lang = 'ru-RU';
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+
+  // Небольшая задержка, чтобы iOS успел «проглотить» cancel
+  setTimeout(() => {
+    window.speechSynthesis.speak(utterance);
+  }, 100);
 }
 
 // Глобальная функция для остановки (нужна для кнопки в попапе)
@@ -187,7 +177,16 @@ function App() {
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
-
+        const unlockAudio = () => {
+      if ('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(u);
+      }
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+    document.addEventListener('touchstart', unlockAudio);
+    document.addEventListener('click', unlockAudio);
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: {
@@ -214,7 +213,7 @@ function App() {
         maximumAge: 0,
         timeout: 10000,
       },
-      trackUserLocation: true,
+      trackUserLocation: false,
       showAccuracyCircle: false,
     });
     
