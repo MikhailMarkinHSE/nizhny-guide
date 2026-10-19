@@ -59,18 +59,25 @@ function cleanTextForSpeech(text: string): string {
   if (s && !/[.!?]$/.test(s)) s += '.';
   return s;
 }
-function speakText(text: string) {
+function speakText(text: string, onStart?: () => void, onEnd?: () => void) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
+
   const cleanText = cleanTextForSpeech(text);
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = 'ru-RU'; utterance.rate = 1.0; utterance.pitch = 1.0;
+
   const voices = window.speechSynthesis.getVoices();
   const preferred = ['Milena', 'Microsoft Irina', 'Google русский', 'Yuri', 'Katya'];
   let ruVoice: SpeechSynthesisVoice | undefined;
   for (const name of preferred) { ruVoice = voices.find(v => v.name.includes(name)); if (ruVoice) break; }
   if (!ruVoice) ruVoice = voices.find(v => v.lang === 'ru-RU' || v.lang.startsWith('ru'));
   if (ruVoice) utterance.voice = ruVoice;
+
+  utterance.onstart = () => onStart?.();
+  utterance.onend = () => onEnd?.();
+  utterance.onerror = () => onEnd?.();
+
   setTimeout(() => window.speechSynthesis.speak(utterance), 100);
 }
 function stopSpeech() { window.speechSynthesis.cancel(); }
@@ -135,6 +142,7 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('gvidon-visited'));
 
   const [selectedDetail, setSelectedDetail] = useState<DetailData | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
   const [navHeading, setNavHeading] = useState<number | null>(null);
   const [navPos, setNavPos] = useState<[number, number] | null>(null);
@@ -192,7 +200,7 @@ function App() {
   // Прибытие — озвучка
   useEffect(() => {
     if (navArrived && navTarget) {
-      speakText(navTarget.text);
+      speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false));
       const id = navTarget.props['@id'] || (navTarget.props as any).id;
       if (id) visitedIds.current.add(id);
     }
@@ -220,6 +228,7 @@ function App() {
     setNavPos(null);
     setNavDistance(null);
     setSelectedDetail(null);
+    setIsSpeaking(false);
     stopSpeech();
 
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
@@ -234,6 +243,7 @@ function App() {
     setNavHeading(null);
     setNavPos(null);
     setNavDistance(null);
+    setIsSpeaking(false);
   };
 
   const findNextNearest = (): { props: Record<string, string>; coords: [number, number] } | null => {
@@ -252,6 +262,7 @@ function App() {
 
   const handleNext = () => {
     stopSpeech();
+    setIsSpeaking(false);
     const next = findNextNearest();
     if (next) handleStartNav(next.props, next.coords);
     else { alert('Больше интересных мест рядом нет. Возвращайтесь на карту!'); handleCloseNav(); }
@@ -266,10 +277,14 @@ function App() {
     const data = buildDetailData(props, wd, wp, story, coords);
     setSelectedDetail(data);
     setSheetOpen(false);
-    speakText(data.spokenText);
+    speakText(data.spokenText, () => setIsSpeaking(true), () => setIsSpeaking(false));
   };
 
-  const closeDetail = () => { stopSpeech(); setSelectedDetail(null); };
+  const closeDetail = () => {
+    stopSpeech();
+    setIsSpeaking(false);
+    setSelectedDetail(null);
+  };
 
   // Основной эффект
   useEffect(() => {
@@ -336,7 +351,6 @@ function App() {
 
         mapInstance.addSource('historic', { type: 'geojson', data: filtered, cluster: true, clusterRadius: 50, clusterMaxZoom: 15 });
 
-        // Кластеры — тонкая обводка
         mapInstance.addLayer({
           id: 'clusters', type: 'circle', source: 'historic', filter: ['has', 'point_count'],
           paint: {
@@ -354,7 +368,6 @@ function App() {
           paint: { 'text-color': '#000000' },
         });
 
-        // Точки — тонкая обводка
         mapInstance.addLayer({
           id: 'unclustered-point-bg', type: 'circle', source: 'historic', filter: ['!', ['has', 'point_count']],
           paint: {
@@ -392,13 +405,13 @@ function App() {
           mapInstance.on('mouseleave', layerId, () => { mapInstance.getCanvas().style.cursor = ''; });
         }
 
-        // Клик по пустому месту — закрываем карточку и шторку
         mapInstance.on('click', (e) => {
           const features = mapInstance.queryRenderedFeatures(e.point, {
             layers: ['clusters', 'unclustered-point-bg', 'unclustered-point-icon'],
           });
           if (features.length === 0) {
             stopSpeech();
+            setIsSpeaking(false);
             setSelectedDetail(null);
             setSheetOpen(false);
           }
@@ -480,7 +493,7 @@ function App() {
         <div className="sheet-content">{sidebarContent}</div>
       </div>
 
-      {/* КАРТОЧКА ОБЪЕКТА (снизу, всегда в одном месте) */}
+      {/* КАРТОЧКА ОБЪЕКТА */}
       {selectedDetail && (
         <div className="detail-card">
           <button className="detail-close" onClick={closeDetail} aria-label="Закрыть">×</button>
@@ -491,13 +504,24 @@ function App() {
             </div>
             <p className="detail-story">{selectedDetail.story}</p>
 
-            <button className="popup-nav-btn" onClick={() => handleStartNav(selectedDetail.props, selectedDetail.coords)}>
-              🧭 Хочу сюда
-            </button>
-
-            <button className="detail-speak-btn" onClick={() => speakText(selectedDetail.spokenText)}>
-              🔊 Слушать
-            </button>
+            <div className="detail-actions">
+              <button className="popup-nav-btn" onClick={() => handleStartNav(selectedDetail.props, selectedDetail.coords)}>
+                🧭 Хочу сюда
+              </button>
+              <button
+                className="detail-speak-btn"
+                onClick={() => {
+                  if (isSpeaking) {
+                    stopSpeech();
+                    setIsSpeaking(false);
+                  } else {
+                    speakText(selectedDetail.spokenText, () => setIsSpeaking(true), () => setIsSpeaking(false));
+                  }
+                }}
+              >
+                {isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}
+              </button>
+            </div>
 
             {(selectedDetail.facts.length > 0 || selectedDetail.img || selectedDetail.links.length > 0) && (
               <details className="popup-details">
@@ -538,30 +562,27 @@ function App() {
 
             {!navArrived && (
               <>
-              <div className="nav-compass-wrap">
-  <div className="nav-compass">
-    <div className="nav-compass-ring" />
-    <div className="nav-arrow" style={{ transform: `rotate(${arrowRotation}deg)` }}>
-      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <filter id="arrowGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        {/* Красное остриё (указывает на цель) */}
-        <polygon points="50,8 35,50 65,50" fill="#e63946" filter="url(#arrowGlow)" />
-        {/* Серый хвост */}
-        <polygon points="50,92 35,50 65,50" fill="#5a5a5a" />
-        {/* Центральная ось */}
-        <circle cx="50" cy="50" r="8" fill="#1a1a1a" stroke="#e63946" strokeWidth="2.5" />
-      </svg>
-    </div>
-  </div>
-</div>
+                <div className="nav-compass-wrap">
+                  <div className="nav-compass">
+                    <div className="nav-compass-ring" />
+                    <div className="nav-arrow" style={{ transform: `rotate(${arrowRotation}deg)` }}>
+                      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <filter id="arrowGlow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="2.5" result="blur" />
+                            <feMerge>
+                              <feMergeNode in="blur" />
+                              <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                          </filter>
+                        </defs>
+                        <polygon points="50,8 35,50 65,50" fill="#e63946" filter="url(#arrowGlow)" />
+                        <polygon points="50,92 35,50 65,50" fill="#5a5a5a" />
+                        <circle cx="50" cy="50" r="8" fill="#1a1a1a" stroke="#e63946" strokeWidth="2.5" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
                 <p className="nav-distance">{navDistance !== null ? formatDistance(navDistance) : 'Определяем...'}</p>
                 <p className="nav-hint">
                   {navHeading === null ? 'Идите по компасу. Наведите телефон по стрелке.' : 'Повернись по стрелке — она указывает на здание.'}
@@ -574,7 +595,12 @@ function App() {
               <>
                 <div className="nav-arrived-badge">✓ Вы на месте</div>
                 <p className="nav-arrived-text">Слушайте рассказ</p>
-                <button className="nav-action-btn" onClick={() => speakText(navTarget.text)}>🔊 Слушать ещё раз</button>
+                <button
+                  className="nav-action-btn"
+                  onClick={() => speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false))}
+                >
+                  🔊 Слушать ещё раз
+                </button>
                 <button className="nav-action-btn nav-next-btn" onClick={handleNext}>→ Следующая точка</button>
               </>
             )}
