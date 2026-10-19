@@ -206,3 +206,38 @@ html, body, #root {
 .popup-links { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 14px; }
 .popup-links a { color: var(--accent); text-decoration: none; font-weight: 600; }
 .popup-links a:hover { text-decoration: underline; }
+
+/* ============ Кнопки зума в правом нижнем углу ============ */
+.maplibregl-ctrl-bottom-right {
+  /* На мобильных поднимаем кнопки выше, чтобы не мешала шторка */
+  margin-bottom: 60px; 
+  margin-right: 12px;
+}
+
+/* Делаем кнопки темнее и аккуратнее */
+.maplibregl-ctrl-group {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-group button {
+  background-color: var(--surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background-color: var(--surface-hover) !important;
+}
+
+/* Инвертируем иконки плюса/минуса для темной темы */
+.maplibregl-ctrl-group button span {
+  filter: invert(1) brightness(1.5);
+}
+
+@media (max-width: 768px) {
+  .maplibregl-ctrl-bottom-right {
+    /* Еще выше на мобильных, чтобы точно не мешать */
+    margin-bottom: 80px !important; 
+  }
+}

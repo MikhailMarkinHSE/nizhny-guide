@@ -246,7 +246,8 @@ function App() {
       zoom: 14,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  
+map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
 
     const geolocate = new maplibregl.GeolocateControl({
       positionOptions: {
@@ -359,6 +360,7 @@ function App() {
           clusterMaxZoom: 15,
         });
 
+                // 1. Кластеры (сделаем их более объёмными)
         mapInstance.addLayer({
           id: 'clusters',
           type: 'circle',
@@ -374,12 +376,14 @@ function App() {
               30,
               '#d62828',
             ],
-            'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 30, 28],
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#fff',
+            'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 30, 30],
+            'circle-stroke-width': 3,
+            'circle-stroke-color': '#ffffff',
+            'circle-opacity': 0.9,
           },
         });
 
+        // 2. Цифра внутри кластера
         mapInstance.addLayer({
           id: 'cluster-count',
           type: 'symbol',
@@ -387,13 +391,15 @@ function App() {
           filter: ['has', 'point_count'],
           layout: {
             'text-field': '{point_count_abbreviated}',
-            'text-size': 12,
+            'text-size': 13,
+            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
           },
-          paint: { 'text-color': '#fff' },
+          paint: { 'text-color': '#ffffff' },
         });
 
+        // 3. Фон для одиночных точек (кружок)
         mapInstance.addLayer({
-          id: 'unclustered-point',
+          id: 'unclustered-point-bg',
           type: 'circle',
           source: 'historic',
           filter: ['!', ['has', 'point_count']],
@@ -401,12 +407,30 @@ function App() {
             'circle-color': [
               'case',
               ['has', 'memorial'],
-              '#3a86ff',
-              '#e63946',
+              '#3a86ff', // Синий для мемориалов
+              '#e63946', // Красный для зданий
             ],
-            'circle-radius': 6,
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#fff',
+            'circle-radius': 14,
+            'circle-stroke-width': 3,
+            'circle-stroke-color': '#ffffff',
+          },
+        });
+
+        // 4. Иконки (эмодзи) поверх кружков
+        mapInstance.addLayer({
+          id: 'unclustered-point-icon',
+          type: 'symbol',
+          source: 'historic',
+          filter: ['!', ['has', 'point_count']],
+          layout: {
+            'text-field': [
+              'case',
+              ['has', 'memorial'],
+              '🕯', // Иконка для мемориала
+              '🏛'  // Иконка для здания
+            ],
+            'text-size': 14,
+            'text-allow-overlap': true,
           },
         });
 
@@ -450,17 +474,33 @@ function App() {
           });
         });
 
-        mapInstance.on('click', 'unclustered-point', (e) => {
+                mapInstance.on('click', 'unclustered-point-bg', (e) => {
           const feature = e.features?.[0];
           if (!feature) return;
           const props = feature.properties;
           if (!props) return;
-          const coords = (feature.geometry as any).coordinates.slice() as [
-            number,
-            number
-          ];
+          const coords = (feature.geometry as any).coordinates.slice() as [number, number];
           showPopup(props, coords);
         });
+
+        mapInstance.on('click', 'unclustered-point-icon', (e) => {
+          const feature = e.features?.[0];
+          if (!feature) return;
+          const props = feature.properties;
+          if (!props) return;
+          const coords = (feature.geometry as any).coordinates.slice() as [number, number];
+          showPopup(props, coords);
+        });
+
+        // Добавляем курсор-указатель для всех интерактивных слоев
+        for (const layer of ['clusters', 'unclustered-point-bg', 'unclustered-point-icon']) {
+          mapInstance.on('mouseenter', layer, () => {
+            mapInstance.getCanvas().style.cursor = 'pointer';
+          });
+          mapInstance.on('mouseleave', layer, () => {
+            mapInstance.getCanvas().style.cursor = '';
+          });
+        };
 
         for (const layer of ['clusters', 'unclustered-point']) {
           mapInstance.on('mouseenter', layer, () => {
