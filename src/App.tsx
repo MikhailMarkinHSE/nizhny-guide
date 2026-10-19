@@ -10,15 +10,18 @@ setWorkerUrl(workerUrl);
 type WikidataEntry = { label?: string; inception?: string; architect?: string; style?: string; image?: string; article?: string; };
 type WikipediaEntry = { extract: string; thumbnail: string | null; url: string | null; };
 type NearbyItem = { props: Record<string, string>; coords: [number, number]; distance: number; };
-type NavTarget = {
+type DetailData = {
+  title: string;
+  styleBadge: string | null;
+  story: string;
+  spokenText: string;
+  facts: { label: string; value: string }[];
+  img: string | null;
+  links: { url: string; label: string }[];
   props: Record<string, string>;
   coords: [number, number];
-  wd?: WikidataEntry;
-  wp?: WikipediaEntry;
-  story?: string;
-  title: string;
-  text: string;
 };
+type NavTarget = { props: Record<string, string>; coords: [number, number]; title: string; text: string; img: string | null; };
 
 function extractQId(url: string): string | null { const m = url.match(/Q\d+$/); return m ? m[0] : null; }
 function formatYear(date: string): string { const m = date.match(/^(-?\d{1,4})/); return m ? m[1] : date; }
@@ -28,13 +31,9 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-function formatDistance(m: number): string {
-  if (m < 1000) return `${Math.round(m)} м`;
-  return `${(m / 1000).toFixed(1)} км`;
-}
+function formatDistance(m: number): string { if (m < 1000) return `${Math.round(m)} м`; return `${(m / 1000).toFixed(1)} км`; }
 function computeBearing(fromLat: number, fromLng: number, toLat: number, toLng: number): number {
-  const φ1 = (fromLat * Math.PI) / 180;
-  const φ2 = (toLat * Math.PI) / 180;
+  const φ1 = (fromLat * Math.PI) / 180; const φ2 = (toLat * Math.PI) / 180;
   const Δλ = ((toLng - fromLng) * Math.PI) / 180;
   const y = Math.sin(Δλ) * Math.cos(φ2);
   const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
@@ -74,7 +73,7 @@ function speakText(text: string) {
   if (ruVoice) utterance.voice = ruVoice;
   setTimeout(() => window.speechSynthesis.speak(utterance), 100);
 }
-(window as any).stopSpeech = () => { window.speechSynthesis.cancel(); };
+function stopSpeech() { window.speechSynthesis.cancel(); }
 
 function generateFallbackStory(props: Record<string, string>, type: string): string {
   const bits: string[] = [];
@@ -88,15 +87,14 @@ function generateFallbackStory(props: Record<string, string>, type: string): str
   return 'Историческое место в Нижнем Новгороде.';
 }
 
-function buildPopupHTML(
-  props: Record<string, string>, wd: WikidataEntry | undefined, wp: WikipediaEntry | undefined, story: string | undefined,
-  coords: [number, number]
-): { html: string; text: string } {
+function buildDetailData(
+  props: Record<string, string>, wd: WikidataEntry | undefined, wp: WikipediaEntry | undefined,
+  story: string | undefined, coords: [number, number]
+): DetailData {
   const type = getObjectType(props);
   const title = wd?.label || props.name || props['name:ru'] || `${props['addr:street'] || ''} ${props['addr:housenumber'] || ''}`.trim() || (type === 'memorial' ? 'Мемориал' : 'Историческое место');
-
   const style = wd?.style || props['building:architecture'];
-  const styleBadge = style ? `<span class="badge">${style}</span>` : '';
+  const styleBadge = style || null;
 
   let mainStory = '';
   if (wp?.extract) mainStory = wp.extract.length > 500 ? wp.extract.slice(0, 500).trim() + '…' : wp.extract;
@@ -106,53 +104,25 @@ function buildPopupHTML(
   else mainStory = generateFallbackStory(props, type);
 
   const spokenText = `${title}. ${mainStory}`;
-  const facts: string[] = [];
+  const facts: { label: string; value: string }[] = [];
 
   if (type === 'building') {
     const year = wd?.inception || props['year_of_construction'] || props.start_date;
-    if (year) facts.push(`<div class="fact"><span class="fact-label">Год</span><span class="fact-value">${formatYear(year)}</span></div>`);
+    if (year) facts.push({ label: 'Год', value: formatYear(year) });
     const architect = wd?.architect || props.architect;
-    if (architect) facts.push(`<div class="fact"><span class="fact-label">Архитектор</span><span class="fact-value">${architect}</span></div>`);
-    if (props['building:levels']) facts.push(`<div class="fact"><span class="fact-label">Этажей</span><span class="fact-value">${props['building:levels']}</span></div>`);
+    if (architect) facts.push({ label: 'Архитектор', value: architect });
+    if (props['building:levels']) facts.push({ label: 'Этажей', value: props['building:levels'] });
   }
-  if (type === 'memorial' && props['memorial:subject']) facts.push(`<div class="fact"><span class="fact-label">Посвящён</span><span class="fact-value">${props['memorial:subject']}</span></div>`);
-  if (props['addr:street']) facts.push(`<div class="fact"><span class="fact-label">Адрес</span><span class="fact-value">${props['addr:street']}, ${props['addr:housenumber'] || ''}</span></div>`);
-  if (props['heritage:name'] || props.heritage) facts.push(`<div class="fact"><span class="fact-label">Наследие</span><span class="fact-value">${props['heritage:name'] || props.heritage}</span></div>`);
+  if (type === 'memorial' && props['memorial:subject']) facts.push({ label: 'Посвящён', value: props['memorial:subject'] });
+  if (props['addr:street']) facts.push({ label: 'Адрес', value: `${props['addr:street']}, ${props['addr:housenumber'] || ''}` });
+  if (props['heritage:name'] || props.heritage) facts.push({ label: 'Наследие', value: props['heritage:name'] || props.heritage || '' });
 
-  const img = wd?.image || wp?.thumbnail;
-  const links: string[] = [];
-  if (wd?.article) links.push(`<a href="${wd.article}" target="_blank" rel="noopener">Википедия →</a>`);
-  else if (wp?.url) links.push(`<a href="${wp.url}" target="_blank" rel="noopener">Читать полностью →</a>`);
+  const img = wd?.image || wp?.thumbnail || null;
+  const links: { url: string; label: string }[] = [];
+  if (wd?.article) links.push({ url: wd.article, label: 'Википедия →' });
+  else if (wp?.url) links.push({ url: wp.url, label: 'Читать полностью →' });
 
-  const hasDetails = facts.length > 0 || img || links.length > 0;
-
-  const navEncoded = encodeURIComponent(JSON.stringify({ props, coords })).replace(/'/g, '%27');
-
-  const html = `
-    <div class="popup">
-      <div class="popup-header">
-        <div class="popup-title-wrap">
-          <h3 class="popup-title">${title}</h3>
-          ${styleBadge}
-        </div>
-        <button onclick="window.stopSpeech()" class="popup-stop" title="Остановить">⏹</button>
-      </div>
-      <p class="popup-story">${mainStory}</p>
-      <button onclick="window.startGvidonNav('${navEncoded}')" class="popup-nav-btn">🧭 Хочу сюда</button>
-      ${hasDetails ? `
-        <details class="popup-details">
-          <summary>Подробнее</summary>
-          <div class="popup-facts">
-            ${img ? `<img class="popup-image" src="${img}" alt="" />` : ''}
-            ${facts.join('')}
-            ${links.length ? `<div class="popup-links">${links.join(' · ')}</div>` : ''}
-          </div>
-        </details>
-      ` : ''}
-      <div class="spoken-text" style="display:none;">${spokenText}</div>
-    </div>
-  `;
-  return { html, text: spokenText };
+  return { title, styleBadge, story: mainStory, spokenText, facts, img, links, props, coords };
 }
 
 function App() {
@@ -164,6 +134,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('gvidon-visited'));
 
+  const [selectedDetail, setSelectedDetail] = useState<DetailData | null>(null);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
   const [navHeading, setNavHeading] = useState<number | null>(null);
   const [navPos, setNavPos] = useState<[number, number] | null>(null);
@@ -175,26 +146,13 @@ function App() {
   const visitedIds = useRef<Set<string>>(new Set());
   const navWatchId = useRef<number | null>(null);
   const wikidataMapRef = useRef<Map<string, WikidataEntry>>(new Map());
-  const wikipediaMapRef = useRef<Map<string, WikipediaEntry>>(new Map());
   const storiesMapRef = useRef<Record<string, string>>({});
   const findWikipediaRef = useRef<(tag: string | undefined) => WikipediaEntry | undefined>(() => undefined);
-  const handleStartNavRef = useRef<(props: Record<string, string>, coords: [number, number]) => void>(() => {});
 
-  // Глобальный обработчик из попапа
-  useEffect(() => {
-    (window as any).startGvidonNav = (encoded: string) => {
-      try {
-        const { props, coords } = JSON.parse(decodeURIComponent(encoded));
-        handleStartNavRef.current(props, coords);
-      } catch (e) { console.error('startGvidonNav error:', e); }
-    };
-  }, []);
-
-  // Эффект: слежение за позицией + компас во время навигации
+  // Навигация — позиция и компас
   useEffect(() => {
     if (!navTarget) return;
 
-    // Позиция
     navWatchId.current = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
@@ -207,7 +165,6 @@ function App() {
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
 
-    // Компас
     let absoluteSupported = false;
     const absHandler = (e: DeviceOrientationEvent) => {
       absoluteSupported = true;
@@ -225,17 +182,14 @@ function App() {
     window.addEventListener('deviceorientation', relHandler);
 
     return () => {
-      if (navWatchId.current !== null) {
-        navigator.geolocation.clearWatch(navWatchId.current);
-        navWatchId.current = null;
-      }
+      if (navWatchId.current !== null) { navigator.geolocation.clearWatch(navWatchId.current); navWatchId.current = null; }
       window.removeEventListener('deviceorientationabsolute', absHandler);
       window.removeEventListener('deviceorientation', relHandler);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navTarget]);
 
-  // Когда прибыли — включаем аудио и помечаем посещённым
+  // Прибытие — озвучка
   useEffect(() => {
     if (navArrived && navTarget) {
       speakText(navTarget.text);
@@ -245,29 +199,36 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navArrived]);
 
+  // Скрываем кнопки зума когда открыта карточка или навигация
+  useEffect(() => {
+    const controls = document.querySelector('.maplibregl-ctrl-bottom-right') as HTMLElement | null;
+    if (controls) {
+      controls.style.display = (selectedDetail || navTarget) ? 'none' : '';
+    }
+  }, [selectedDetail, navTarget]);
+
   const handleStartNav = (props: Record<string, string>, coords: [number, number]) => {
     const qid = props.wikidata;
     const wd = qid ? wikidataMapRef.current.get(qid) : undefined;
     const wp = findWikipediaRef.current(props.wikipedia);
     const id = props['@id'] || (props as any).id;
     const story = id ? storiesMapRef.current[id] : undefined;
-    const { text } = buildPopupHTML(props, wd, wp, story, coords);
-    const title = wd?.label || props.name || props['name:ru'] || `${props['addr:street'] || ''} ${props['addr:housenumber'] || ''}`.trim() || 'Историческое место';
+    const data = buildDetailData(props, wd, wp, story, coords);
 
-    setNavTarget({ props, coords, wd, wp, story, title, text });
+    setNavTarget({ props, coords, title: data.title, text: data.spokenText, img: data.img });
     setNavArrived(false);
     setNavPos(null);
     setNavDistance(null);
+    setSelectedDetail(null);
+    stopSpeech();
 
-    // Запрос разрешения на компас (iOS) — синхронно, в жесте пользователя
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
       (DeviceOrientationEvent as any).requestPermission().catch(() => {});
     }
   };
-  handleStartNavRef.current = handleStartNav;
 
   const handleCloseNav = () => {
-    window.speechSynthesis.cancel();
+    stopSpeech();
     setNavTarget(null);
     setNavArrived(false);
     setNavHeading(null);
@@ -290,17 +251,27 @@ function App() {
   };
 
   const handleNext = () => {
-    window.speechSynthesis.cancel();
+    stopSpeech();
     const next = findNextNearest();
-    if (next) {
-      handleStartNav(next.props, next.coords);
-    } else {
-      alert('Больше интересных мест рядом нет. Возвращайтесь на карту!');
-      handleCloseNav();
-    }
+    if (next) handleStartNav(next.props, next.coords);
+    else { alert('Больше интересных мест рядом нет. Возвращайтесь на карту!'); handleCloseNav(); }
   };
 
-  // Основной эффект с картой
+  const showDetail = (props: Record<string, string>, coords: [number, number]) => {
+    const qid = props.wikidata;
+    const wd = qid ? wikidataMapRef.current.get(qid) : undefined;
+    const wp = findWikipediaRef.current(props.wikipedia);
+    const id = props['@id'] || (props as any).id;
+    const story = id ? storiesMapRef.current[id] : undefined;
+    const data = buildDetailData(props, wd, wp, story, coords);
+    setSelectedDetail(data);
+    setSheetOpen(false);
+    speakText(data.spokenText);
+  };
+
+  const closeDetail = () => { stopSpeech(); setSelectedDetail(null); };
+
+  // Основной эффект
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
@@ -322,10 +293,8 @@ function App() {
     const geolocate = new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }, trackUserLocation: false, showAccuracyCircle: false });
     map.current.addControl(geolocate, 'top-right');
 
-    const closeSheet = () => setSheetOpen(false);
-    map.current.on('dragstart', closeSheet);
-    map.current.on('click', closeSheet);
-    mapContainer.current.addEventListener('touchstart', closeSheet);
+    map.current.on('dragstart', () => setSheetOpen(false));
+    mapContainer.current.addEventListener('touchstart', () => setSheetOpen(false));
 
     map.current.on('load', async () => {
       const mapInstance = map.current!;
@@ -355,7 +324,6 @@ function App() {
         const normalize = (s: string): string => s.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
         const wikipediaMap = new Map<string, WikipediaEntry>();
         for (const [title, entry] of Object.entries(wpRes as Record<string, WikipediaEntry>)) { wikipediaMap.set(normalize(title), entry); wikipediaMap.set(title, entry); }
-        wikipediaMapRef.current = wikipediaMap;
         const findWikipedia = (tag: string | undefined): WikipediaEntry | undefined => {
           if (!tag) return undefined; const [lang, ...rest] = tag.split(':'); if (!lang) return undefined;
           const title = rest.join(':').split('#')[0].trim(); if (!title) return undefined;
@@ -367,29 +335,50 @@ function App() {
         featuresRef.current = filtered.features;
 
         mapInstance.addSource('historic', { type: 'geojson', data: filtered, cluster: true, clusterRadius: 50, clusterMaxZoom: 15 });
-        mapInstance.addLayer({ id: 'clusters', type: 'circle', source: 'historic', filter: ['has', 'point_count'], paint: { 'circle-color': ['step', ['get', 'point_count'], '#e63946', 10, '#f77f00', 30, '#d62828'], 'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 30, 30], 'circle-stroke-width': 3, 'circle-stroke-color': '#000000', 'circle-opacity': 0.9 } });
-        mapInstance.addLayer({ id: 'cluster-count', type: 'symbol', source: 'historic', filter: ['has', 'point_count'], layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 13 }, paint: { 'text-color': '#000000' } });
-        mapInstance.addLayer({ id: 'unclustered-point-bg', type: 'circle', source: 'historic', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': ['case', ['has', 'memorial'], '#3a86ff', '#e63946'], 'circle-radius': 14, 'circle-stroke-width': 3, 'circle-stroke-color': '#000000' } });
-        mapInstance.addLayer({ id: 'unclustered-point-icon', type: 'symbol', source: 'historic', filter: ['!', ['has', 'point_count']], layout: { 'text-field': ['case', ['has', 'memorial'], '🕯', '🏛'], 'text-size': 14, 'text-allow-overlap': true } });
 
-        const showPopup = (props: Record<string, string>, coords: [number, number]) => {
-          const qid = props.wikidata; const wd = qid ? wikidataMapRef.current.get(qid) : undefined;
-          const wp = findWikipediaRef.current(props.wikipedia);
-          const id = props['@id'] || (props as any).id;
-          const story = id ? storiesMapRef.current[id] : undefined;
-          const { html, text } = buildPopupHTML(props, wd, wp, story, coords);
-          const popup = new maplibregl.Popup({ maxWidth: '340px' }).setLngLat(coords).setHTML(html).addTo(mapInstance);
-          speakText(text);
-          popup.on('close', () => { (window as any).stopSpeech(); });
-        };
-        (mapInstance as any)._showPopup = showPopup;
+        // Кластеры — тонкая обводка
+        mapInstance.addLayer({
+          id: 'clusters', type: 'circle', source: 'historic', filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': ['step', ['get', 'point_count'], '#e63946', 10, '#f77f00', 30, '#d62828'],
+            'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 30, 28],
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#000000',
+            'circle-opacity': 0.95,
+          },
+        });
+
+        mapInstance.addLayer({
+          id: 'cluster-count', type: 'symbol', source: 'historic', filter: ['has', 'point_count'],
+          layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 13 },
+          paint: { 'text-color': '#000000' },
+        });
+
+        // Точки — тонкая обводка
+        mapInstance.addLayer({
+          id: 'unclustered-point-bg', type: 'circle', source: 'historic', filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-color': ['case', ['has', 'memorial'], '#3a86ff', '#e63946'],
+            'circle-radius': 13,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#000000',
+          },
+        });
+
+        mapInstance.addLayer({
+          id: 'unclustered-point-icon', type: 'symbol', source: 'historic', filter: ['!', ['has', 'point_count']],
+          layout: { 'text-field': ['case', ['has', 'memorial'], '🕯', '🏛'], 'text-size': 13, 'text-allow-overlap': true },
+        });
 
         mapInstance.on('click', 'clusters', (e) => {
           const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['clusters'] });
           const feature = features[0]; if (!feature) return;
           const clusterId = feature.properties?.cluster_id;
           const source = mapInstance.getSource('historic') as maplibregl.GeoJSONSource;
-          source.getClusterExpansionZoom(clusterId).then((zoom) => { const coords = (feature.geometry as any).coordinates; mapInstance.easeTo({ center: coords, zoom }); });
+          source.getClusterExpansionZoom(clusterId).then((zoom) => {
+            const coords = (feature.geometry as any).coordinates;
+            mapInstance.easeTo({ center: coords, zoom });
+          });
         });
 
         for (const layerId of ['unclustered-point-bg', 'unclustered-point-icon']) {
@@ -397,11 +386,23 @@ function App() {
             const feature = e.features?.[0]; if (!feature) return;
             const props = feature.properties; if (!props) return;
             const coords = (feature.geometry as any).coordinates.slice() as [number, number];
-            showPopup(props, coords);
+            showDetail(props, coords);
           });
           mapInstance.on('mouseenter', layerId, () => { mapInstance.getCanvas().style.cursor = 'pointer'; });
           mapInstance.on('mouseleave', layerId, () => { mapInstance.getCanvas().style.cursor = ''; });
         }
+
+        // Клик по пустому месту — закрываем карточку и шторку
+        mapInstance.on('click', (e) => {
+          const features = mapInstance.queryRenderedFeatures(e.point, {
+            layers: ['clusters', 'unclustered-point-bg', 'unclustered-point-icon'],
+          });
+          if (features.length === 0) {
+            stopSpeech();
+            setSelectedDetail(null);
+            setSheetOpen(false);
+          }
+        });
 
         geolocate.on('geolocate', (e: any) => {
           const lng = e.coords.longitude; const lat = e.coords.latitude;
@@ -414,16 +415,14 @@ function App() {
     });
 
     return () => {
-      if (mapContainer.current) mapContainer.current.removeEventListener('touchstart', closeSheet);
+      // cleanup
     };
   }, []);
 
   const handleNearbyClick = (item: NearbyItem) => {
     if (!map.current) return;
     map.current.flyTo({ center: item.coords, zoom: 17, duration: 1000 });
-    const showPopup = (map.current as any)._showPopup;
-    if (showPopup) setTimeout(() => showPopup(item.props, item.coords), 1100);
-    setSheetOpen(false);
+    setTimeout(() => showDetail(item.props, item.coords), 900);
   };
 
   const sidebarContent = (
@@ -460,13 +459,8 @@ function App() {
     </>
   );
 
-  // Навигация
-  const navBearing = (navTarget && navPos)
-    ? computeBearing(navPos[1], navPos[0], navTarget.coords[1], navTarget.coords[0])
-    : null;
-  const arrowRotation = navBearing !== null
-    ? (navHeading !== null ? (navBearing - navHeading + 360) % 360 : navBearing)
-    : 0;
+  const navBearing = (navTarget && navPos) ? computeBearing(navPos[1], navPos[0], navTarget.coords[1], navTarget.coords[0]) : null;
+  const arrowRotation = navBearing !== null ? (navHeading !== null ? (navBearing - navHeading + 360) % 360 : navBearing) : 0;
 
   return (
     <div className="app">
@@ -486,41 +480,93 @@ function App() {
         <div className="sheet-content">{sidebarContent}</div>
       </div>
 
+      {/* КАРТОЧКА ОБЪЕКТА (снизу, всегда в одном месте) */}
+      {selectedDetail && (
+        <div className="detail-card">
+          <button className="detail-close" onClick={closeDetail} aria-label="Закрыть">×</button>
+          <div className="detail-scroll">
+            <div className="detail-header">
+              <h2 className="detail-title">{selectedDetail.title}</h2>
+              {selectedDetail.styleBadge && <span className="badge">{selectedDetail.styleBadge}</span>}
+            </div>
+            <p className="detail-story">{selectedDetail.story}</p>
+
+            <button className="popup-nav-btn" onClick={() => handleStartNav(selectedDetail.props, selectedDetail.coords)}>
+              🧭 Хочу сюда
+            </button>
+
+            <button className="detail-speak-btn" onClick={() => speakText(selectedDetail.spokenText)}>
+              🔊 Слушать
+            </button>
+
+            {(selectedDetail.facts.length > 0 || selectedDetail.img || selectedDetail.links.length > 0) && (
+              <details className="popup-details">
+                <summary>Подробнее</summary>
+                <div className="popup-facts">
+                  {selectedDetail.img && <img className="popup-image" src={selectedDetail.img} alt="" />}
+                  {selectedDetail.facts.map((f, i) => (
+                    <div key={i} className="fact">
+                      <span className="fact-label">{f.label}</span>
+                      <span className="fact-value">{f.value}</span>
+                    </div>
+                  ))}
+                  {selectedDetail.links.length > 0 && (
+                    <div className="popup-links">
+                      {selectedDetail.links.map((l, i) => (
+                        <a key={i} href={l.url} target="_blank" rel="noopener">{l.label}</a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* НАВИГАЦИЯ */}
       {navTarget && (
         <div className="nav-overlay">
           <button className="nav-close" onClick={handleCloseNav} aria-label="Закрыть">×</button>
           <div className="nav-content">
-            {navTarget.wd?.image || navTarget.wp?.thumbnail ? (
-              <img src={navTarget.wd?.image || navTarget.wp?.thumbnail || ''} alt="" className="nav-photo" />
+            {navTarget.img ? (
+              <img src={navTarget.img} alt="" className="nav-photo" />
             ) : (
               <div className="nav-photo-placeholder">🏛</div>
             )}
-
             <h1 className="nav-title">{navTarget.title}</h1>
 
             {!navArrived && (
               <>
-                <div className="nav-compass-wrap">
-                  <div className="nav-compass">
-                    <div className="nav-compass-ring" />
-                    <div className="nav-arrow" style={{ transform: `rotate(${arrowRotation}deg)` }}>▲</div>
-                  </div>
-                  <div className="nav-compass-n">N</div>
-                </div>
-
-                <p className="nav-distance">
-                  {navDistance !== null ? formatDistance(navDistance) : 'Определяем...'}
-                </p>
+              <div className="nav-compass-wrap">
+  <div className="nav-compass">
+    <div className="nav-compass-ring" />
+    <div className="nav-arrow" style={{ transform: `rotate(${arrowRotation}deg)` }}>
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="arrowGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        {/* Красное остриё (указывает на цель) */}
+        <polygon points="50,8 35,50 65,50" fill="#e63946" filter="url(#arrowGlow)" />
+        {/* Серый хвост */}
+        <polygon points="50,92 35,50 65,50" fill="#5a5a5a" />
+        {/* Центральная ось */}
+        <circle cx="50" cy="50" r="8" fill="#1a1a1a" stroke="#e63946" strokeWidth="2.5" />
+      </svg>
+    </div>
+  </div>
+</div>
+                <p className="nav-distance">{navDistance !== null ? formatDistance(navDistance) : 'Определяем...'}</p>
                 <p className="nav-hint">
-                  {navHeading === null
-                    ? 'Идите по компасу. Наведите телефон по стрелке.'
-                    : 'Повернись по стрелке — она указывает на здание.'}
+                  {navHeading === null ? 'Идите по компасу. Наведите телефон по стрелке.' : 'Повернись по стрелке — она указывает на здание.'}
                 </p>
-
-                <button className="nav-arrived-btn" onClick={() => setNavArrived(true)}>
-                  Я на месте
-                </button>
+                <button className="nav-arrived-btn" onClick={() => setNavArrived(true)}>Я на месте</button>
               </>
             )}
 
@@ -528,12 +574,8 @@ function App() {
               <>
                 <div className="nav-arrived-badge">✓ Вы на месте</div>
                 <p className="nav-arrived-text">Слушайте рассказ</p>
-                <button className="nav-action-btn" onClick={() => speakText(navTarget.text)}>
-                  🔊 Слушать ещё раз
-                </button>
-                <button className="nav-action-btn nav-next-btn" onClick={handleNext}>
-                  → Следующая точка
-                </button>
+                <button className="nav-action-btn" onClick={() => speakText(navTarget.text)}>🔊 Слушать ещё раз</button>
+                <button className="nav-action-btn nav-next-btn" onClick={handleNext}>→ Следующая точка</button>
               </>
             )}
           </div>
