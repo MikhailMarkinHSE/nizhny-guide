@@ -5,29 +5,6 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css';
 
-// Функция для озвучки текста (голосовой Гвидон)
-function speakText(text: string) {
-  if (!('speechSynthesis' in window)) return;
-
-  // Останавливаем предыдущую озвучку
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ru-RU';
-  utterance.rate = 1.0;
-  utterance.pitch = 1.0;
-
-  // Небольшая задержка, чтобы iOS успел «проглотить» cancel
-  setTimeout(() => {
-    window.speechSynthesis.speak(utterance);
-  }, 100);
-}
-
-// Глобальная функция для остановки (нужна для кнопки в попапе)
-(window as any).stopSpeech = () => {
-  window.speechSynthesis.cancel();
-};
-
 setWorkerUrl(workerUrl);
 
 type WikidataEntry = {
@@ -88,6 +65,77 @@ function getObjectType(props: Record<string, string>): 'building' | 'memorial' |
   return 'other';
 }
 
+// ---- Очистка текста для TTS ----
+function cleanTextForSpeech(text: string): string {
+  let s = text;
+  s = s.replace(/[*_#`~]/g, '');
+  s = s.replace(/\([^)]*\)/g, '');
+  s = s.replace(/\bул\.\s*/g, 'улица ');
+  s = s.replace(/\bд\.\s*/g, 'дом ');
+  s = s.replace(/\bгг\.\s*/g, 'годы ');
+  s = s.replace(/\bг\.\s*(?=\d)/g, 'года ');
+  s = s.replace(/\bг\.\s*/g, 'город ');
+  s = s.replace(/\bвв\.\s*/g, 'века ');
+  s = s.replace(/\bв\.\s*/g, 'век ');
+  s = s.replace(/\bпр\.\s*/g, 'проспект ');
+  s = s.replace(/\bпл\.\s*/g, 'площадь ');
+  s = s.replace(/\bнаб\.\s*/g, 'набережная ');
+  s = s.replace(/\bпер\.\s*/g, 'переулок ');
+  s = s.replace(/\bш\.\s*/g, 'шоссе ');
+  s = s.replace(/\bт\.\s*е\.\s*/g, 'то есть ');
+  s = s.replace(/\bт\.\s*д\.\s*/g, 'так далее ');
+  s = s.replace(/\bт\.\s*п\.\s*/g, 'тому подобное ');
+  s = s.replace(/[|/\\<>]/g, ' ');
+  s = s.replace(/[–—]/g, ', ');
+  s = s.replace(/\s+/g, ' ').replace(/\.{2,}/g, '.');
+  s = s.trim();
+  if (s && !/[.!?]$/.test(s)) s += '.';
+  return s;
+}
+
+function speakText(text: string) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+
+  const cleanText = cleanTextForSpeech(text);
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  utterance.lang = 'ru-RU';
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = ['Milena', 'Microsoft Irina', 'Google русский', 'Yuri', 'Katya'];
+  let ruVoice: SpeechSynthesisVoice | undefined;
+  for (const name of preferred) {
+    ruVoice = voices.find(v => v.name.includes(name));
+    if (ruVoice) break;
+  }
+  if (!ruVoice) ruVoice = voices.find(v => v.lang === 'ru-RU' || v.lang.startsWith('ru'));
+  if (ruVoice) utterance.voice = ruVoice;
+
+  setTimeout(() => window.speechSynthesis.speak(utterance), 100);
+}
+
+(window as any).stopSpeech = () => {
+  window.speechSynthesis.cancel();
+};
+
+// ---- Фолбэк-рассказ, если нет текста ----
+function generateFallbackStory(props: Record<string, string>, type: string): string {
+  const bits: string[] = [];
+  if (type === 'building') {
+    if (props['building:architecture']) bits.push(`в стиле ${props['building:architecture']}`);
+    const year = props['year_of_construction'] || props.start_date;
+    if (year) bits.push(`${formatYear(year)} года`);
+    if (bits.length) return `Здание ${bits.join(', ')}.`;
+  }
+  if (type === 'memorial' && props['memorial:subject']) {
+    return `Памятник, посвящённый ${props['memorial:subject']}.`;
+  }
+  return 'Историческое место в Нижнем Новгороде.';
+}
+
+// ---- НОВЫЙ попап ----
 function buildPopupHTML(
   props: Record<string, string>,
   wd: WikidataEntry | undefined,
@@ -103,67 +151,83 @@ function buildPopupHTML(
     `${props['addr:street'] || ''} ${props['addr:housenumber'] || ''}`.trim() ||
     (type === 'memorial' ? 'Мемориал' : 'Историческое место');
 
-  // Собираем чистый текст для голосового Гвидона
-  let spokenText = `${title}. `;
-
-  const parts: string[] = [
-    `<h3>${title}</h3>`,
-    // Кнопка остановки
-    `<button onclick="window.stopSpeech()" style="position: absolute; top: 8px; right: 8px; background: #f0f0f0; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">⏹ Стоп</button>`
-  ];
-
-  // 1. Приоритет: Википедия
+  // Основной рассказ (по приоритету)
+  let mainStory = '';
   if (wp?.extract) {
-    const short = wp.extract.length > 500 ? wp.extract.slice(0, 500).trim() + '…' : wp.extract;
-    parts.push(`<p style="color: #333; line-height: 1.5; margin: 8px 0; padding-right: 40px;">${short}</p>`);
-    spokenText += short + ' ';
-  } 
-  // 2. Если нет Википедии, но есть LLM-история
-  else if (story) {
-    parts.push(`<p style="color: #333; line-height: 1.5; margin: 8px 0; padding-right: 40px;">${story}</p>`);
-    spokenText += story + ' ';
+    mainStory = wp.extract.length > 500
+      ? wp.extract.slice(0, 500).trim() + '…'
+      : wp.extract;
+  } else if (story) {
+    mainStory = story;
+  } else if (props.description) {
+    mainStory = props.description;
+  } else if (props.inscription) {
+    mainStory = `«${props.inscription}»`;
+  } else {
+    mainStory = generateFallbackStory(props, type);
   }
 
-  if (type === 'memorial') {
-    if (props['memorial:subject']) {
-      parts.push(`<p><b>Посвящён:</b> ${props['memorial:subject']}</p>`);
-      spokenText += `Посвящён: ${props['memorial:subject']}. `;
-    }
-    if (props.inscription && !wp?.extract && !story) {
-      parts.push(`<blockquote style="margin: 8px 0; padding: 6px 10px; border-left: 3px solid #e63946; background: #fafafa; font-style: italic; color: #444;">${props.inscription}</blockquote>`);
-      spokenText += `Надпись на табличке: ${props.inscription}. `;
-    }
-  }
+  // Текст для озвучки: заголовок + рассказ
+  const spokenText = `${title}. ${mainStory}`;
+
+  // ---- Сухие факты (в раскрывающемся блоке) ----
+  const facts: string[] = [];
 
   if (type === 'building') {
     const year = wd?.inception || props['year_of_construction'] || props.start_date;
-    if (year) {
-      parts.push(`<p><b>Год:</b> ${formatYear(year)}</p>`);
-      spokenText += `Год постройки: ${formatYear(year)}. `;
-    }
+    if (year) facts.push(`<div class="fact"><span class="fact-label">Год</span><span class="fact-value">${formatYear(year)}</span></div>`);
+
+    const architect = wd?.architect || props.architect;
+    if (architect) facts.push(`<div class="fact"><span class="fact-label">Архитектор</span><span class="fact-value">${architect}</span></div>`);
+
     const style = wd?.style || props['building:architecture'];
-    if (style) {
-      parts.push(`<p><b>Стиль:</b> ${style}</p>`);
-      spokenText += `Архитектурный стиль: ${style}. `;
-    }
+    if (style) facts.push(`<div class="fact"><span class="fact-label">Стиль</span><span class="fact-value">${style}</span></div>`);
+
+    if (props['building:levels']) facts.push(`<div class="fact"><span class="fact-label">Этажей</span><span class="fact-value">${props['building:levels']}</span></div>`);
+  }
+
+  if (type === 'memorial' && props['memorial:subject']) {
+    facts.push(`<div class="fact"><span class="fact-label">Посвящён</span><span class="fact-value">${props['memorial:subject']}</span></div>`);
   }
 
   if (props['addr:street']) {
-    parts.push(`<p><b>Адрес:</b> ${props['addr:street']}, ${props['addr:housenumber'] || ''}</p>`);
+    facts.push(`<div class="fact"><span class="fact-label">Адрес</span><span class="fact-value">${props['addr:street']}, ${props['addr:housenumber'] || ''}</span></div>`);
+  }
+
+  if (props['heritage:name'] || props.heritage) {
+    facts.push(`<div class="fact"><span class="fact-label">Наследие</span><span class="fact-value">${props['heritage:name'] || props.heritage}</span></div>`);
   }
 
   const img = wd?.image || wp?.thumbnail;
-  if (img) {
-    parts.push(`<img src="${img}" alt="" style="max-width: 260px; border-radius: 6px; margin-top: 6px;" />`);
-  }
 
-  // Скрытое поле, чтобы потом передать текст в озвучку
-  parts.push(`<div class="spoken-text" style="display:none;">${spokenText}</div>`);
+  const links: string[] = [];
+  if (wd?.article) links.push(`<a href="${wd.article}" target="_blank" rel="noopener">Википедия →</a>`);
+  else if (wp?.url) links.push(`<a href="${wp.url}" target="_blank" rel="noopener">Читать полностью →</a>`);
 
-  return { 
-    html: parts.join(''), 
-    text: spokenText 
-  };
+  const hasDetails = facts.length > 0 || img || links.length > 0;
+
+  const html = `
+    <div class="popup">
+      <div class="popup-header">
+        <h3 class="popup-title">${title}</h3>
+        <button onclick="window.stopSpeech()" class="popup-stop" title="Остановить">⏹</button>
+      </div>
+      <p class="popup-story">${mainStory}</p>
+      ${hasDetails ? `
+        <details class="popup-details">
+          <summary>Подробнее</summary>
+          <div class="popup-facts">
+            ${img ? `<img class="popup-image" src="${img}" alt="" />` : ''}
+            ${facts.join('')}
+            ${links.length ? `<div class="popup-links">${links.join(' · ')}</div>` : ''}
+          </div>
+        </details>
+      ` : ''}
+      <div class="spoken-text" style="display:none;">${spokenText}</div>
+    </div>
+  `;
+
+  return { html, text: spokenText };
 }
 
 function App() {
@@ -172,12 +236,17 @@ function App() {
   const [nearby, setNearby] = useState<NearbyItem[]>([]);
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    return !localStorage.getItem('gvidon-visited');
+  });
   const featuresRef = useRef<any[]>([]);
   const hasAutoOpenedSheet = useRef(false);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
-        const unlockAudio = () => {
+
+    const unlockAudio = () => {
       if ('speechSynthesis' in window) {
         const u = new SpeechSynthesisUtterance('');
         window.speechSynthesis.speak(u);
@@ -187,6 +256,7 @@ function App() {
     };
     document.addEventListener('touchstart', unlockAudio);
     document.addEventListener('click', unlockAudio);
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: {
@@ -216,9 +286,9 @@ function App() {
       trackUserLocation: false,
       showAccuracyCircle: false,
     });
-    
+
     map.current.addControl(geolocate, 'top-right');
-    
+
     const closeSheet = () => setSheetOpen(false);
     map.current.on('dragstart', closeSheet);
     map.current.on('click', closeSheet);
@@ -369,7 +439,7 @@ function App() {
           },
         });
 
-                        const showPopup = (
+        const showPopup = (
           props: Record<string, string>,
           coords: [number, number]
         ) => {
@@ -378,19 +448,16 @@ function App() {
           const wp = findWikipedia(props.wikipedia);
           const id = props['@id'] || (props as any).id;
           const story = id ? storiesMap[id] : undefined;
-          
-          // Получаем и HTML, и текст
+
           const { html, text } = buildPopupHTML(props, wd, wp, story);
-          
-          const popup = new maplibregl.Popup({ maxWidth: '320px' })
+
+          const popup = new maplibregl.Popup({ maxWidth: '340px' })
             .setLngLat(coords)
             .setHTML(html)
             .addTo(mapInstance);
 
-          // Вызываем озвучку СРАЗУ (синхронно с кликом), чтобы обойти блокировку Chrome
           speakText(text);
 
-          // Останавливаем озвучку при закрытии
           popup.on('close', () => {
             (window as any).stopSpeech();
           });
@@ -528,8 +595,16 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Гвидон</h1>
+        <button className="header-menu" onClick={() => setMenuOpen(true)} aria-label="Меню">
+          ☰
+        </button>
+        <div className="header-brand">
+  <img src="/icon-192.png" alt="" className="header-logo" />
+  <h1>Гвидон</h1>
+</div>
+        <div className="header-spacer" />
       </header>
+
       <div className="content">
         <aside className="sidebar">{sidebarContent}</aside>
         <div ref={mapContainer} className="map" />
@@ -545,6 +620,66 @@ function App() {
         </button>
         <div className="sheet-content">{sidebarContent}</div>
       </div>
+
+      {/* Меню */}
+      {menuOpen && (
+        <div className="menu-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="menu-panel" onClick={(e) => e.stopPropagation()}>
+            <button className="menu-close" onClick={() => setMenuOpen(false)}>×</button>
+            <h2 className="menu-title">Меню</h2>
+            <button
+              className="menu-item"
+              onClick={() => {
+                setMenuOpen(false);
+                setShowWelcome(true);
+              }}
+            >
+              О приложении
+            </button>
+            <button
+              className="menu-item"
+              onClick={() => {
+                if (confirm('Сбросить кэш? Приложение перезагрузится.')) {
+                  localStorage.clear();
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then((rs) => {
+                      rs.forEach((r) => r.unregister());
+                    });
+                  }
+                  setTimeout(() => window.location.reload(), 300);
+                }
+              }}
+            >
+              Сбросить кэш
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Welcome / Заставка */}
+      {showWelcome && (
+        <div className="welcome">
+          <div className="welcome-content">
+            <img src="/icon-192.png" alt="Гвидон" className="welcome-logo-img" />
+            <h1 className="welcome-title">Гвидон</h1>
+            <p className="welcome-tagline">Guide on</p>
+            <p className="welcome-hint">
+              Твой личный гид по Нижнему Новгороду.
+              <br />
+              Гуляй по городу — приложение расскажет о зданиях и памятниках рядом.
+            </p>
+            <button
+              className="welcome-btn"
+              onClick={() => {
+                localStorage.setItem('gvidon-visited', '1');
+                setShowWelcome(false);
+              }}
+            >
+              Начать прогулку
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
