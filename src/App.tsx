@@ -745,12 +745,19 @@ function App() {
                 </div>
                 <button className="nav-x-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
               </div>
-              <div className="nav-btn-row">
+                            <div className="nav-btn-row">
                 <button
                   className="nav-btn nav-btn-secondary"
-                  onClick={() => speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false))}
+                  onClick={() => {
+                    if (isSpeaking) {
+                      stopSpeech();
+                      setIsSpeaking(false);
+                    } else {
+                      speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false));
+                    }
+                  }}
                 >
-                  🔊 Слушать
+                  {isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}
                 </button>
                 <button className="nav-btn nav-btn-primary" onClick={handleNext}>
                   → Дальше
