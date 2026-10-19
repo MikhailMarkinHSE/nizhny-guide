@@ -17,17 +17,16 @@ type DetailData = {
 };
 type NavTarget = { props: Record<string, string>; coords: [number, number]; title: string; text: string; img: string | null; };
 
-// Типы для маршрута
 type RouteStep = {
   type: string;
   modifier?: string;
   location: [number, number];
   name: string;
 };
-type RouteGeoJSON = { 
-  type: 'Feature'; 
-  properties: Record<string, any>; 
-  geometry: { type: 'LineString'; coordinates: [number, number][] } 
+type RouteGeoJSON = {
+  type: 'Feature';
+  properties: Record<string, any>;
+  geometry: { type: 'LineString'; coordinates: [number, number][] };
 };
 
 function extractQId(url: string): string | null { const m = url.match(/Q\d+$/); return m ? m[0] : null; }
@@ -53,28 +52,26 @@ function getObjectType(props: Record<string, string>): 'building' | 'memorial' |
   return 'other';
 }
 
-// Перевод маневров OSRM на русский
 function translateManeuver(step: RouteStep): string {
   const street = step.name ? ` на ${step.name}` : '';
   const mod = step.modifier || '';
-  
+
   if (step.type === 'depart') return 'Начните движение';
   if (step.type === 'arrive') return 'Вы на месте';
-  
+
   if (step.type === 'turn') {
+    if (mod.includes('slight left')) return `Плавно поверните налево${street}`;
+    if (mod.includes('slight right')) return `Плавно поверните направо${street}`;
     if (mod.includes('left')) return `Поверните налево${street}`;
     if (mod.includes('right')) return `Поверните направо${street}`;
     if (mod.includes('straight')) return `Идите прямо${street}`;
-    if (mod.includes('slight left')) return `Плавно поверните налево${street}`;
-    if (mod.includes('slight right')) return `Плавно поверните направо${street}`;
   }
   if (step.type === 'new name') return `Продолжайте движение${street}`;
   if (step.type === 'roundabout' || step.type === 'rotary') return `Войдите на круг${street}`;
-  
+
   return `Продолжайте движение${street}`;
 }
 
-// OSRM: бесплатный пеший маршрут + шаги
 async function fetchWalkingRoute(from: [number, number], to: [number, number]): Promise<{ geo: RouteGeoJSON, steps: RouteStep[] } | null> {
   try {
     const url = `https://router.project-osrm.org/route/v1/foot/${from[0]},${from[1]};${to[0]},${to[1]}?overview=full&geometries=geojson&steps=true`;
@@ -203,8 +200,7 @@ function App() {
   const [navPos, setNavPos] = useState<[number, number] | null>(null);
   const [navDistance, setNavDistance] = useState<number | null>(null);
   const [navArrived, setNavArrived] = useState(false);
-  
-  // Состояние для маршрута и инструкций
+
   const [routeData, setRouteData] = useState<RouteGeoJSON | null>(null);
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
   const [routeLoading, setRouteLoading] = useState(false);
@@ -218,7 +214,6 @@ function App() {
   const storiesMapRef = useRef<Record<string, string>>({});
   const findWikipediaRef = useRef<(tag: string | undefined) => WikipediaEntry | undefined>(() => undefined);
 
-  // Навигация — позиция, компас и обновление инструкций
   useEffect(() => {
     if (!navTarget) return;
 
@@ -226,18 +221,16 @@ function App() {
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setNavPos([longitude, latitude]);
-        
+
         const d = haversine(latitude, longitude, navTarget.coords[1], navTarget.coords[0]);
         setNavDistance(d);
         if (d < 20 && !navArrived) setNavArrived(true);
 
-        // Логика поиска ближайшего маневра (поворота)
         if (routeSteps.length > 0) {
-          let closestStep = null;
+          let closestStep: RouteStep | null = null;
           let minStepDist = Infinity;
 
           for (const step of routeSteps) {
-            // Считаем расстояние от текущей позиции до точки маневра
             const stepDist = haversine(latitude, longitude, step.location[1], step.location[0]);
             if (stepDist < minStepDist) {
               minStepDist = stepDist;
@@ -246,7 +239,6 @@ function App() {
           }
 
           if (closestStep) {
-            // Если до конечной точки меньше, чем до ближайшего маневра, значит мы уже на финише
             if (d < minStepDist) {
               setCurrentInstruction({ text: 'Вы почти на месте', distance: d });
             } else {
@@ -283,7 +275,6 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navTarget, routeSteps, navArrived]);
 
-  // Загрузка маршрута
   useEffect(() => {
     if (!navTarget) {
       setRouteData(null);
@@ -309,12 +300,12 @@ function App() {
       async () => {
         if (userPos) {
           const routeRes = await fetchWalkingRoute(userPos, navTarget.coords);
-          if (!cancelled) { 
+          if (!cancelled) {
             if (routeRes) {
-              setRouteData(routeRes.geo); 
+              setRouteData(routeRes.geo);
               setRouteSteps(routeRes.steps);
             }
-            setRouteLoading(false); 
+            setRouteLoading(false);
           }
         } else {
           if (!cancelled) setRouteLoading(false);
@@ -327,7 +318,6 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navTarget]);
 
-  // Рисуем маршрут на карте
   useEffect(() => {
     if (!map.current) return;
     const source = map.current.getSource('route') as maplibregl.GeoJSONSource | undefined;
@@ -339,15 +329,13 @@ function App() {
       if (coords.length > 1) {
         const bounds = new maplibregl.LngLatBounds();
         coords.forEach((c) => bounds.extend(c));
-        // Подстраиваем камеру так, чтобы оставить место для нижней карточки
-        map.current.fitBounds(bounds, { padding: { top: 80, bottom: 300, left: 40, right: 40 }, duration: 900 });
+        map.current.fitBounds(bounds, { padding: { top: 80, bottom: 180, left: 40, right: 40 }, duration: 900 });
       }
     } else {
       source.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } });
     }
   }, [routeData]);
 
-  // Прибытие — озвучка
   useEffect(() => {
     if (navArrived && navTarget) {
       speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false));
@@ -357,7 +345,6 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navArrived]);
 
-  // Скрываем кнопки зума когда открыта карточка/навигация
   useEffect(() => {
     const controls = document.querySelector('.maplibregl-ctrl-bottom-right') as HTMLElement | null;
     if (controls) controls.style.display = (selectedDetail || navTarget) ? 'none' : '';
@@ -438,7 +425,6 @@ function App() {
     setSelectedDetail(null);
   };
 
-  // Основной эффект
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
@@ -466,7 +452,6 @@ function App() {
     map.current.on('load', async () => {
       const mapInstance = map.current!;
 
-      // Добавляем пустой source для маршрута
       mapInstance.addSource('route', {
         type: 'geojson',
         data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } },
@@ -664,7 +649,6 @@ function App() {
         <div className="sheet-content">{sidebarContent}</div>
       </div>
 
-      {/* КАРТОЧКА ОБЪЕКТА */}
       {selectedDetail && !navTarget && (
         <div className="detail-card">
           <button className="detail-close" onClick={closeDetail} aria-label="Закрыть">×</button>
@@ -715,66 +699,61 @@ function App() {
         </div>
       )}
 
-      {/* НАВИГАЦИЯ — компактная карточка с инструкциями */}
       {navTarget && (
         <div className="nav-sheet">
-          <button className="nav-close-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
-
           {!navArrived ? (
-            <div className="nav-compact">
-              <div className="nav-compact-compass">
-                <div className="nav-arrow-compact" style={{ transform: `rotate(${arrowRotation}deg)` }}>
+            <>
+              <div className="nav-top">
+                <div className="nav-mini-arrow" style={{ transform: `rotate(${arrowRotation}deg)` }}>
                   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                      <filter id="arrowGlowC" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2.5" result="blur" />
-                        <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                      </filter>
-                    </defs>
-                    <polygon points="50,8 35,50 65,50" fill="#e63946" filter="url(#arrowGlowC)" />
-                    <polygon points="50,92 35,50 65,50" fill="#5a5a5a" />
-                    <circle cx="50" cy="50" r="8" fill="#1a1a1a" stroke="#e63946" strokeWidth="2.5" />
+                    <polygon points="50,18 30,52 70,52" fill="#e63946" />
+                    <polygon points="50,82 30,48 70,48" fill="#4a4a4a" />
+                    <circle cx="50" cy="50" r="7" fill="#1a1a1a" stroke="#e63946" strokeWidth="3" />
                   </svg>
                 </div>
-              </div>
-              <div className="nav-compact-info">
-                <div className="nav-compact-title">{navTarget.title}</div>
-                
-                {/* ИНСТРУКЦИЯ ПО МАНЕВРУ */}
-                <div className="nav-instruction">
-                  {routeLoading ? (
-                    <span className="nav-loading">Строим маршрут...</span>
-                  ) : currentInstruction ? (
-                    <>
-                      <span className="nav-instruction-dist">{formatDistance(currentInstruction.distance)}</span>
-                      <span className="nav-instruction-text">{currentInstruction.text}</span>
-                    </>
-                  ) : (
-                    <span className="nav-instruction-text">{navDistance !== null ? `До цели: ${formatDistance(navDistance)}` : 'Определяем...'}</span>
-                  )}
+                <div className="nav-text">
+                  <div className="nav-title">{navTarget.title}</div>
+                  <div className="nav-dist">{navDistance !== null ? formatDistance(navDistance) : '...'}</div>
                 </div>
-
+                <button className="nav-x-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
               </div>
-              <button className="nav-compact-arrive" onClick={() => setNavArrived(true)}>
+
+              <div className="nav-instr">
+                {routeLoading ? (
+                  <span className="nav-instr-loading">Строим маршрут...</span>
+                ) : currentInstruction ? (
+                  <><b>{formatDistance(currentInstruction.distance)}</b> · {currentInstruction.text}</>
+                ) : (
+                  <span>Идите по красной линии на карте</span>
+                )}
+              </div>
+
+              <button className="nav-btn nav-btn-primary nav-btn-full" onClick={() => setNavArrived(true)}>
                 Я на месте
               </button>
-            </div>
+            </>
           ) : (
-            <div className="nav-compact nav-compact-arrived">
-              <div className="nav-arrived-badge">✓ Вы на месте</div>
-              <div className="nav-compact-title" style={{ marginBottom: 12 }}>{navTarget.title}</div>
-              <div className="nav-arrived-actions">
+            <>
+              <div className="nav-top">
+                <div className="nav-arrived-icon">✓</div>
+                <div className="nav-text">
+                  <div className="nav-title">{navTarget.title}</div>
+                  <div className="nav-arrived-sub">Вы на месте</div>
+                </div>
+                <button className="nav-x-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
+              </div>
+              <div className="nav-btn-row">
                 <button
-                  className="nav-action-btn"
+                  className="nav-btn nav-btn-secondary"
                   onClick={() => speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false))}
                 >
                   🔊 Слушать
                 </button>
-                <button className="nav-action-btn nav-next-btn" onClick={handleNext}>
-                  → Следующая
+                <button className="nav-btn nav-btn-primary" onClick={handleNext}>
+                  → Дальше
                 </button>
               </div>
-            </div>
+            </>
           )}
         </div>
       )}
