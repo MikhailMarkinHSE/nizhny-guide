@@ -11,17 +11,24 @@ type WikidataEntry = { label?: string; inception?: string; architect?: string; s
 type WikipediaEntry = { extract: string; thumbnail: string | null; url: string | null; };
 type NearbyItem = { props: Record<string, string>; coords: [number, number]; distance: number; };
 type DetailData = {
-  title: string;
-  styleBadge: string | null;
-  story: string;
-  spokenText: string;
-  facts: { label: string; value: string }[];
-  img: string | null;
-  links: { url: string; label: string }[];
-  props: Record<string, string>;
-  coords: [number, number];
+  title: string; styleBadge: string | null; story: string; spokenText: string;
+  facts: { label: string; value: string }[]; img: string | null; links: { url: string; label: string }[];
+  props: Record<string, string>; coords: [number, number];
 };
 type NavTarget = { props: Record<string, string>; coords: [number, number]; title: string; text: string; img: string | null; };
+
+// Типы для маршрута
+type RouteStep = {
+  type: string;
+  modifier?: string;
+  location: [number, number];
+  name: string;
+};
+type RouteGeoJSON = { 
+  type: 'Feature'; 
+  properties: Record<string, any>; 
+  geometry: { type: 'LineString'; coordinates: [number, number][] } 
+};
 
 function extractQId(url: string): string | null { const m = url.match(/Q\d+$/); return m ? m[0] : null; }
 function formatYear(date: string): string { const m = date.match(/^(-?\d{1,4})/); return m ? m[1] : date; }
@@ -45,6 +52,58 @@ function getObjectType(props: Record<string, string>): 'building' | 'memorial' |
   if (props.building || props['building:architecture'] || props['building:levels']) return 'building';
   return 'other';
 }
+
+// Перевод маневров OSRM на русский
+function translateManeuver(step: RouteStep): string {
+  const street = step.name ? ` на ${step.name}` : '';
+  const mod = step.modifier || '';
+  
+  if (step.type === 'depart') return 'Начните движение';
+  if (step.type === 'arrive') return 'Вы на месте';
+  
+  if (step.type === 'turn') {
+    if (mod.includes('left')) return `Поверните налево${street}`;
+    if (mod.includes('right')) return `Поверните направо${street}`;
+    if (mod.includes('straight')) return `Идите прямо${street}`;
+    if (mod.includes('slight left')) return `Плавно поверните налево${street}`;
+    if (mod.includes('slight right')) return `Плавно поверните направо${street}`;
+  }
+  if (step.type === 'new name') return `Продолжайте движение${street}`;
+  if (step.type === 'roundabout' || step.type === 'rotary') return `Войдите на круг${street}`;
+  
+  return `Продолжайте движение${street}`;
+}
+
+// OSRM: бесплатный пеший маршрут + шаги
+async function fetchWalkingRoute(from: [number, number], to: [number, number]): Promise<{ geo: RouteGeoJSON, steps: RouteStep[] } | null> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/foot/${from[0]},${from[1]};${to[0]},${to[1]}?overview=full&geometries=geojson&steps=true`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.routes?.[0]?.geometry) return null;
+
+    const route = data.routes[0];
+    const steps: RouteStep[] = route.legs[0].steps.map((s: any) => ({
+      type: s.maneuver.type,
+      modifier: s.maneuver.modifier,
+      location: s.maneuver.location,
+      name: s.name,
+    }));
+
+    return {
+      geo: {
+        type: 'Feature',
+        properties: { distance: route.distance, duration: route.duration },
+        geometry: route.geometry,
+      },
+      steps
+    };
+  } catch {
+    return null;
+  }
+}
+
 function cleanTextForSpeech(text: string): string {
   let s = text;
   s = s.replace(/[*_#`~]/g, ''); s = s.replace(/\([^)]*\)/g, '');
@@ -62,22 +121,18 @@ function cleanTextForSpeech(text: string): string {
 function speakText(text: string, onStart?: () => void, onEnd?: () => void) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-
   const cleanText = cleanTextForSpeech(text);
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = 'ru-RU'; utterance.rate = 1.0; utterance.pitch = 1.0;
-
   const voices = window.speechSynthesis.getVoices();
   const preferred = ['Milena', 'Microsoft Irina', 'Google русский', 'Yuri', 'Katya'];
   let ruVoice: SpeechSynthesisVoice | undefined;
   for (const name of preferred) { ruVoice = voices.find(v => v.name.includes(name)); if (ruVoice) break; }
   if (!ruVoice) ruVoice = voices.find(v => v.lang === 'ru-RU' || v.lang.startsWith('ru'));
   if (ruVoice) utterance.voice = ruVoice;
-
   utterance.onstart = () => onStart?.();
   utterance.onend = () => onEnd?.();
   utterance.onerror = () => onEnd?.();
-
   setTimeout(() => window.speechSynthesis.speak(utterance), 100);
 }
 function stopSpeech() { window.speechSynthesis.cancel(); }
@@ -148,6 +203,12 @@ function App() {
   const [navPos, setNavPos] = useState<[number, number] | null>(null);
   const [navDistance, setNavDistance] = useState<number | null>(null);
   const [navArrived, setNavArrived] = useState(false);
+  
+  // Состояние для маршрута и инструкций
+  const [routeData, setRouteData] = useState<RouteGeoJSON | null>(null);
+  const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [currentInstruction, setCurrentInstruction] = useState<{ text: string; distance: number } | null>(null);
 
   const featuresRef = useRef<any[]>([]);
   const hasAutoOpenedSheet = useRef(false);
@@ -157,7 +218,7 @@ function App() {
   const storiesMapRef = useRef<Record<string, string>>({});
   const findWikipediaRef = useRef<(tag: string | undefined) => WikipediaEntry | undefined>(() => undefined);
 
-  // Навигация — позиция и компас
+  // Навигация — позиция, компас и обновление инструкций
   useEffect(() => {
     if (!navTarget) return;
 
@@ -165,9 +226,34 @@ function App() {
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setNavPos([longitude, latitude]);
+        
         const d = haversine(latitude, longitude, navTarget.coords[1], navTarget.coords[0]);
         setNavDistance(d);
         if (d < 20 && !navArrived) setNavArrived(true);
+
+        // Логика поиска ближайшего маневра (поворота)
+        if (routeSteps.length > 0) {
+          let closestStep = null;
+          let minStepDist = Infinity;
+
+          for (const step of routeSteps) {
+            // Считаем расстояние от текущей позиции до точки маневра
+            const stepDist = haversine(latitude, longitude, step.location[1], step.location[0]);
+            if (stepDist < minStepDist) {
+              minStepDist = stepDist;
+              closestStep = step;
+            }
+          }
+
+          if (closestStep) {
+            // Если до конечной точки меньше, чем до ближайшего маневра, значит мы уже на финише
+            if (d < minStepDist) {
+              setCurrentInstruction({ text: 'Вы почти на месте', distance: d });
+            } else {
+              setCurrentInstruction({ text: translateManeuver(closestStep), distance: minStepDist });
+            }
+          }
+        }
       },
       (err) => console.error('GPS error:', err),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
@@ -195,7 +281,71 @@ function App() {
       window.removeEventListener('deviceorientation', relHandler);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navTarget, routeSteps, navArrived]);
+
+  // Загрузка маршрута
+  useEffect(() => {
+    if (!navTarget) {
+      setRouteData(null);
+      setRouteSteps([]);
+      setCurrentInstruction(null);
+      return;
+    }
+    let cancelled = false;
+    setRouteLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const from: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+        const routeRes = await fetchWalkingRoute(from, navTarget.coords);
+        if (!cancelled) {
+          if (routeRes) {
+            setRouteData(routeRes.geo);
+            setRouteSteps(routeRes.steps);
+          }
+          setRouteLoading(false);
+        }
+      },
+      async () => {
+        if (userPos) {
+          const routeRes = await fetchWalkingRoute(userPos, navTarget.coords);
+          if (!cancelled) { 
+            if (routeRes) {
+              setRouteData(routeRes.geo); 
+              setRouteSteps(routeRes.steps);
+            }
+            setRouteLoading(false); 
+          }
+        } else {
+          if (!cancelled) setRouteLoading(false);
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navTarget]);
+
+  // Рисуем маршрут на карте
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource('route') as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+
+    if (routeData) {
+      source.setData(routeData);
+      const coords = routeData.geometry.coordinates;
+      if (coords.length > 1) {
+        const bounds = new maplibregl.LngLatBounds();
+        coords.forEach((c) => bounds.extend(c));
+        // Подстраиваем камеру так, чтобы оставить место для нижней карточки
+        map.current.fitBounds(bounds, { padding: { top: 80, bottom: 300, left: 40, right: 40 }, duration: 900 });
+      }
+    } else {
+      source.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } });
+    }
+  }, [routeData]);
 
   // Прибытие — озвучка
   useEffect(() => {
@@ -207,12 +357,10 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navArrived]);
 
-  // Скрываем кнопки зума когда открыта карточка или навигация
+  // Скрываем кнопки зума когда открыта карточка/навигация
   useEffect(() => {
     const controls = document.querySelector('.maplibregl-ctrl-bottom-right') as HTMLElement | null;
-    if (controls) {
-      controls.style.display = (selectedDetail || navTarget) ? 'none' : '';
-    }
+    if (controls) controls.style.display = (selectedDetail || navTarget) ? 'none' : '';
   }, [selectedDetail, navTarget]);
 
   const handleStartNav = (props: Record<string, string>, coords: [number, number]) => {
@@ -229,6 +377,7 @@ function App() {
     setNavDistance(null);
     setSelectedDetail(null);
     setIsSpeaking(false);
+    setSheetOpen(false);
     stopSpeech();
 
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
@@ -243,6 +392,9 @@ function App() {
     setNavHeading(null);
     setNavPos(null);
     setNavDistance(null);
+    setRouteData(null);
+    setRouteSteps([]);
+    setCurrentInstruction(null);
     setIsSpeaking(false);
   };
 
@@ -313,6 +465,27 @@ function App() {
 
     map.current.on('load', async () => {
       const mapInstance = map.current!;
+
+      // Добавляем пустой source для маршрута
+      mapInstance.addSource('route', {
+        type: 'geojson',
+        data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } },
+      });
+      mapInstance.addLayer({
+        id: 'route-outline',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#000000', 'line-width': 9, 'line-opacity': 0.6 },
+      });
+      mapInstance.addLayer({
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#e63946', 'line-width': 5, 'line-opacity': 0.95 },
+      });
+
       try {
         const [osmRes, wdRes, wpRes, llmRes] = await Promise.all([
           fetch('/data/historic.geojson').then((r) => r.json()),
@@ -427,9 +600,7 @@ function App() {
       } catch (err) { console.error('Ошибка загрузки данных:', err); }
     });
 
-    return () => {
-      // cleanup
-    };
+    return () => {};
   }, []);
 
   const handleNearbyClick = (item: NearbyItem) => {
@@ -488,13 +659,13 @@ function App() {
         <div ref={mapContainer} className="map" />
       </div>
 
-      <div className={`sheet ${sheetOpen ? 'sheet-open' : ''}`}>
+      <div className={`sheet ${sheetOpen && !navTarget ? 'sheet-open' : ''}`}>
         <button className="sheet-handle" onClick={() => setSheetOpen((v) => !v)}>{sheetOpen ? '▼' : '▲'} Рядом с тобой</button>
         <div className="sheet-content">{sidebarContent}</div>
       </div>
 
       {/* КАРТОЧКА ОБЪЕКТА */}
-      {selectedDetail && (
+      {selectedDetail && !navTarget && (
         <div className="detail-card">
           <button className="detail-close" onClick={closeDetail} aria-label="Закрыть">×</button>
           <div className="detail-scroll">
@@ -511,12 +682,8 @@ function App() {
               <button
                 className="detail-speak-btn"
                 onClick={() => {
-                  if (isSpeaking) {
-                    stopSpeech();
-                    setIsSpeaking(false);
-                  } else {
-                    speakText(selectedDetail.spokenText, () => setIsSpeaking(true), () => setIsSpeaking(false));
-                  }
+                  if (isSpeaking) { stopSpeech(); setIsSpeaking(false); }
+                  else speakText(selectedDetail.spokenText, () => setIsSpeaking(true), () => setIsSpeaking(false));
                 }}
               >
                 {isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}
@@ -548,63 +715,67 @@ function App() {
         </div>
       )}
 
-      {/* НАВИГАЦИЯ */}
+      {/* НАВИГАЦИЯ — компактная карточка с инструкциями */}
       {navTarget && (
-        <div className="nav-overlay">
-          <button className="nav-close" onClick={handleCloseNav} aria-label="Закрыть">×</button>
-          <div className="nav-content">
-            {navTarget.img ? (
-              <img src={navTarget.img} alt="" className="nav-photo" />
-            ) : (
-              <div className="nav-photo-placeholder">🏛</div>
-            )}
-            <h1 className="nav-title">{navTarget.title}</h1>
+        <div className="nav-sheet">
+          <button className="nav-close-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
 
-            {!navArrived && (
-              <>
-                <div className="nav-compass-wrap">
-                  <div className="nav-compass">
-                    <div className="nav-compass-ring" />
-                    <div className="nav-arrow" style={{ transform: `rotate(${arrowRotation}deg)` }}>
-                      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                          <filter id="arrowGlow" x="-50%" y="-50%" width="200%" height="200%">
-                            <feGaussianBlur stdDeviation="2.5" result="blur" />
-                            <feMerge>
-                              <feMergeNode in="blur" />
-                              <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                          </filter>
-                        </defs>
-                        <polygon points="50,8 35,50 65,50" fill="#e63946" filter="url(#arrowGlow)" />
-                        <polygon points="50,92 35,50 65,50" fill="#5a5a5a" />
-                        <circle cx="50" cy="50" r="8" fill="#1a1a1a" stroke="#e63946" strokeWidth="2.5" />
-                      </svg>
-                    </div>
-                  </div>
+          {!navArrived ? (
+            <div className="nav-compact">
+              <div className="nav-compact-compass">
+                <div className="nav-arrow-compact" style={{ transform: `rotate(${arrowRotation}deg)` }}>
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <filter id="arrowGlowC" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="2.5" result="blur" />
+                        <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                      </filter>
+                    </defs>
+                    <polygon points="50,8 35,50 65,50" fill="#e63946" filter="url(#arrowGlowC)" />
+                    <polygon points="50,92 35,50 65,50" fill="#5a5a5a" />
+                    <circle cx="50" cy="50" r="8" fill="#1a1a1a" stroke="#e63946" strokeWidth="2.5" />
+                  </svg>
                 </div>
-                <p className="nav-distance">{navDistance !== null ? formatDistance(navDistance) : 'Определяем...'}</p>
-                <p className="nav-hint">
-                  {navHeading === null ? 'Идите по компасу. Наведите телефон по стрелке.' : 'Повернись по стрелке — она указывает на здание.'}
-                </p>
-                <button className="nav-arrived-btn" onClick={() => setNavArrived(true)}>Я на месте</button>
-              </>
-            )}
+              </div>
+              <div className="nav-compact-info">
+                <div className="nav-compact-title">{navTarget.title}</div>
+                
+                {/* ИНСТРУКЦИЯ ПО МАНЕВРУ */}
+                <div className="nav-instruction">
+                  {routeLoading ? (
+                    <span className="nav-loading">Строим маршрут...</span>
+                  ) : currentInstruction ? (
+                    <>
+                      <span className="nav-instruction-dist">{formatDistance(currentInstruction.distance)}</span>
+                      <span className="nav-instruction-text">{currentInstruction.text}</span>
+                    </>
+                  ) : (
+                    <span className="nav-instruction-text">{navDistance !== null ? `До цели: ${formatDistance(navDistance)}` : 'Определяем...'}</span>
+                  )}
+                </div>
 
-            {navArrived && (
-              <>
-                <div className="nav-arrived-badge">✓ Вы на месте</div>
-                <p className="nav-arrived-text">Слушайте рассказ</p>
+              </div>
+              <button className="nav-compact-arrive" onClick={() => setNavArrived(true)}>
+                Я на месте
+              </button>
+            </div>
+          ) : (
+            <div className="nav-compact nav-compact-arrived">
+              <div className="nav-arrived-badge">✓ Вы на месте</div>
+              <div className="nav-compact-title" style={{ marginBottom: 12 }}>{navTarget.title}</div>
+              <div className="nav-arrived-actions">
                 <button
                   className="nav-action-btn"
                   onClick={() => speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false))}
                 >
-                  🔊 Слушать ещё раз
+                  🔊 Слушать
                 </button>
-                <button className="nav-action-btn nav-next-btn" onClick={handleNext}>→ Следующая точка</button>
-              </>
-            )}
-          </div>
+                <button className="nav-action-btn nav-next-btn" onClick={handleNext}>
+                  → Следующая
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
