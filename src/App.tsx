@@ -7,15 +7,28 @@ import './App.css';
 
 // Функция для озвучки текста (голосовой Гвидон)
 function speakText(text: string) {
-  if (!('speechSynthesis' in window)) return;
+  if (!('speechSynthesis' in window)) {
+    console.error('Браузер не поддерживает озвучку');
+    return;
+  }
 
-  // Останавливаем предыдущую озвучку, если она шла
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ru-RU'; // Русский язык
-  utterance.rate = 1.0;     // Скорость (1.0 - нормальная)
-  utterance.pitch = 1.0;    // Тон
+  utterance.lang = 'ru-RU'; 
+  utterance.rate = 1.0;     
+  utterance.pitch = 1.0;    
+  
+  // Ищем русский голос
+  const voices = window.speechSynthesis.getVoices();
+  console.log('Доступные голоса:', voices); // Выведет список в консоль браузера
+  
+  const ruVoice = voices.find(v => v.lang === 'ru-RU' || v.lang.startsWith('ru'));
+  if (ruVoice) {
+    utterance.voice = ruVoice;
+  } else {
+    console.warn('Русский голос не найден! Будет использован голос по умолчанию.');
+  }
   
   window.speechSynthesis.speak(utterance);
 }
@@ -90,7 +103,7 @@ function buildPopupHTML(
   wd: WikidataEntry | undefined,
   wp: WikipediaEntry | undefined,
   story: string | undefined
-): string {
+): { html: string; text: string } {
   const type = getObjectType(props);
 
   const title =
@@ -157,7 +170,10 @@ function buildPopupHTML(
   // Скрытое поле, чтобы потом передать текст в озвучку
   parts.push(`<div class="spoken-text" style="display:none;">${spokenText}</div>`);
 
-  return parts.join('');
+  return { 
+    html: parts.join(''), 
+    text: spokenText 
+  };
 }
 
 function App() {
@@ -354,7 +370,7 @@ function App() {
           },
         });
 
-                const showPopup = (
+                        const showPopup = (
           props: Record<string, string>,
           coords: [number, number]
         ) => {
@@ -364,25 +380,18 @@ function App() {
           const id = props['@id'] || (props as any).id;
           const story = id ? storiesMap[id] : undefined;
           
-          const html = buildPopupHTML(props, wd, wp, story);
+          // Получаем и HTML, и текст
+          const { html, text } = buildPopupHTML(props, wd, wp, story);
           
           const popup = new maplibregl.Popup({ maxWidth: '320px' })
             .setLngLat(coords)
             .setHTML(html)
             .addTo(mapInstance);
 
-          // --- МАГИЯ АУДИОГИДА ---
-          // Ждем миллисекунду, пока попап отрисуется, и достаем из него текст
-          setTimeout(() => {
-            // Находим скрытый блок внутри попапа
-            const popupEl = popup.getElement();
-            const textEl = popupEl?.querySelector('.spoken-text');
-            if (textEl && textEl.textContent) {
-              speakText(textEl.textContent);
-            }
-          }, 100);
+          // Вызываем озвучку СРАЗУ (синхронно с кликом), чтобы обойти блокировку Chrome
+          speakText(text);
 
-          // Останавливаем озвучку, если пользователь закрыл попап
+          // Останавливаем озвучку при закрытии
           popup.on('close', () => {
             (window as any).stopSpeech();
           });
