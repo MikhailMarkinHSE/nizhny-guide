@@ -5,6 +5,26 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css';
 
+// Функция для озвучки текста (голосовой Гвидон)
+function speakText(text: string) {
+  if (!('speechSynthesis' in window)) return;
+
+  // Останавливаем предыдущую озвучку, если она шла
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'ru-RU'; // Русский язык
+  utterance.rate = 1.0;     // Скорость (1.0 - нормальная)
+  utterance.pitch = 1.0;    // Тон
+  
+  window.speechSynthesis.speak(utterance);
+}
+
+// Глобальная функция для остановки (нужна для кнопки в попапе)
+(window as any).stopSpeech = () => {
+  window.speechSynthesis.cancel();
+};
+
 setWorkerUrl(workerUrl);
 
 type WikidataEntry = {
@@ -80,104 +100,62 @@ function buildPopupHTML(
     `${props['addr:street'] || ''} ${props['addr:housenumber'] || ''}`.trim() ||
     (type === 'memorial' ? 'Мемориал' : 'Историческое место');
 
-  const parts: string[] = [`<h3>${title}</h3>`];
+  // Собираем чистый текст для голосового Гвидона
+  let spokenText = `${title}. `;
+
+  const parts: string[] = [
+    `<h3>${title}</h3>`,
+    // Кнопка остановки
+    `<button onclick="window.stopSpeech()" style="position: absolute; top: 8px; right: 8px; background: #f0f0f0; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">⏹ Стоп</button>`
+  ];
 
   // 1. Приоритет: Википедия
   if (wp?.extract) {
-    const short =
-      wp.extract.length > 500
-        ? wp.extract.slice(0, 500).trim() + '…'
-        : wp.extract;
-    parts.push(
-      `<p style="color: #333; line-height: 1.5; margin: 8px 0;">${short}</p>`
-    );
+    const short = wp.extract.length > 500 ? wp.extract.slice(0, 500).trim() + '…' : wp.extract;
+    parts.push(`<p style="color: #333; line-height: 1.5; margin: 8px 0; padding-right: 40px;">${short}</p>`);
+    spokenText += short + ' ';
   } 
   // 2. Если нет Википедии, но есть LLM-история
   else if (story) {
-    parts.push(
-      `<p style="color: #333; line-height: 1.5; margin: 8px 0;">${story}</p>`
-    );
+    parts.push(`<p style="color: #333; line-height: 1.5; margin: 8px 0; padding-right: 40px;">${story}</p>`);
+    spokenText += story + ' ';
   }
 
   if (type === 'memorial') {
     if (props['memorial:subject']) {
       parts.push(`<p><b>Посвящён:</b> ${props['memorial:subject']}</p>`);
+      spokenText += `Посвящён: ${props['memorial:subject']}. `;
     }
-    if (props['memorial:type']) {
-      parts.push(`<p><b>Тип:</b> ${props['memorial:type']}</p>`);
-    }
-    // Надпись показываем, если нет ни Википедии, ни LLM
     if (props.inscription && !wp?.extract && !story) {
-      parts.push(
-        `<blockquote style="margin: 8px 0; padding: 6px 10px; border-left: 3px solid #e63946; background: #fafafa; font-style: italic; color: #444;">${props.inscription}</blockquote>`
-      );
+      parts.push(`<blockquote style="margin: 8px 0; padding: 6px 10px; border-left: 3px solid #e63946; background: #fafafa; font-style: italic; color: #444;">${props.inscription}</blockquote>`);
+      spokenText += `Надпись на табличке: ${props.inscription}. `;
     }
   }
 
   if (type === 'building') {
-    const year =
-      wd?.inception || props['year_of_construction'] || props.start_date;
-    if (year) parts.push(`<p><b>Год:</b> ${formatYear(year)}</p>`);
-
-    if (wd?.architect) parts.push(`<p><b>Архитектор:</b> ${wd.architect}</p>`);
-    else if (props.architect) parts.push(`<p><b>Архитектор:</b> ${props.architect}</p>`);
-
+    const year = wd?.inception || props['year_of_construction'] || props.start_date;
+    if (year) {
+      parts.push(`<p><b>Год:</b> ${formatYear(year)}</p>`);
+      spokenText += `Год постройки: ${formatYear(year)}. `;
+    }
     const style = wd?.style || props['building:architecture'];
-    if (style) parts.push(`<p><b>Стиль:</b> ${style}</p>`);
-
-    if (props['building:levels'])
-      parts.push(`<p><b>Этажей:</b> ${props['building:levels']}</p>`);
-    if (props['building:material'])
-      parts.push(`<p><b>Материал:</b> ${props['building:material']}</p>`);
-    else if (props.material)
-      parts.push(`<p><b>Материал:</b> ${props.material}</p>`);
-  }
-
-  // Описание из OSM — только если нет ни Википедии, ни LLM
-  if (props.description && !wp?.extract && !story) {
-    parts.push(
-      `<p style="color: #333; line-height: 1.45;">${props.description}</p>`
-    );
-  }
-
-  if (props['heritage:name'] || props.heritage) {
-    const h = props['heritage:name'] || props.heritage;
-    parts.push(`<p><b>Объект наследия:</b> ${h}</p>`);
+    if (style) {
+      parts.push(`<p><b>Стиль:</b> ${style}</p>`);
+      spokenText += `Архитектурный стиль: ${style}. `;
+    }
   }
 
   if (props['addr:street']) {
-    parts.push(
-      `<p><b>Адрес:</b> ${props['addr:street']}, ${props['addr:housenumber'] || ''}</p>`
-    );
+    parts.push(`<p><b>Адрес:</b> ${props['addr:street']}, ${props['addr:housenumber'] || ''}</p>`);
   }
 
   const img = wd?.image || wp?.thumbnail;
   if (img) {
-    parts.push(
-      `<img src="${img}" alt="" style="max-width: 260px; border-radius: 6px; margin-top: 6px;" />`
-    );
+    parts.push(`<img src="${img}" alt="" style="max-width: 260px; border-radius: 6px; margin-top: 6px;" />`);
   }
 
-  const links: string[] = [];
-  if (wd?.article) {
-    links.push(
-      `<a href="${wd.article}" target="_blank" rel="noopener">Википедия →</a>`
-    );
-  } else if (wp?.url) {
-    links.push(
-      `<a href="${wp.url}" target="_blank" rel="noopener">Читать полностью →</a>`
-    );
-  }
-
-  if (links.length) {
-    parts.push(`<p>${links.join(' · ')}</p>`);
-  }
-
-  if (props.source_ref) {
-    parts.push(
-      `<p style="font-size: 11px; color: #999; margin-top: 6px;">Источник: ${props.source_ref}</p>`
-    );
-  }
+  // Скрытое поле, чтобы потом передать текст в озвучку
+  parts.push(`<div class="spoken-text" style="display:none;">${spokenText}</div>`);
 
   return parts.join('');
 }
@@ -376,7 +354,7 @@ function App() {
           },
         });
 
-        const showPopup = (
+                const showPopup = (
           props: Record<string, string>,
           coords: [number, number]
         ) => {
@@ -386,10 +364,28 @@ function App() {
           const id = props['@id'] || (props as any).id;
           const story = id ? storiesMap[id] : undefined;
           
-          new maplibregl.Popup({ maxWidth: '320px' })
+          const html = buildPopupHTML(props, wd, wp, story);
+          
+          const popup = new maplibregl.Popup({ maxWidth: '320px' })
             .setLngLat(coords)
-            .setHTML(buildPopupHTML(props, wd, wp, story))
+            .setHTML(html)
             .addTo(mapInstance);
+
+          // --- МАГИЯ АУДИОГИДА ---
+          // Ждем миллисекунду, пока попап отрисуется, и достаем из него текст
+          setTimeout(() => {
+            // Находим скрытый блок внутри попапа
+            const popupEl = popup.getElement();
+            const textEl = popupEl?.querySelector('.spoken-text');
+            if (textEl && textEl.textContent) {
+              speakText(textEl.textContent);
+            }
+          }, 100);
+
+          // Останавливаем озвучку, если пользователь закрыл попап
+          popup.on('close', () => {
+            (window as any).stopSpeech();
+          });
         };
 
         (mapInstance as any)._showPopup = showPopup;
