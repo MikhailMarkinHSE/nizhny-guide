@@ -561,3 +561,9 @@ html, body, #root {
 @media (max-width: 768px) {
   .panorama-modal { height: 80vh; }
 }
+
+a.nav-btn {
+  display: block;
+  text-decoration: none;
+  line-height: 1.2;
+}

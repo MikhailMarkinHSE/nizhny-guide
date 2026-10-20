@@ -199,7 +199,6 @@ function App() {
   const [currentInstruction, setCurrentInstruction] = useState<{ text: string; distance: number } | null>(null);
 
   const [highlightPolygon, setHighlightPolygon] = useState<Polygon | null>(null);
-  const [showPanorama, setShowPanorama] = useState(false);
 
   const featuresRef = useRef<any[]>([]);
   const hasAutoOpenedSheet = useRef(false);
@@ -304,7 +303,7 @@ function App() {
       const coords = routeData.geometry.coordinates;
       if (coords.length > 1) {
         const bounds = new maplibregl.LngLatBounds();
-        coords.forEach((c) => bounds.extend(c));
+        coords.forEach((c) => bounds.extend([c[0], c[1]] as [number, number]));
         map.current.fitBounds(bounds, { padding: { top: 80, bottom: 200, left: 40, right: 40 }, duration: 900 });
       }
     } else {
@@ -317,35 +316,50 @@ function App() {
     const mapInstance = map.current;
     const srcId = 'highlight-building';
     const layerId = 'highlight-3d';
+    const outlineId = 'highlight-outline';
 
-    if (!highlightPolygon) {
-      if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId);
-      if (mapInstance.getSource(srcId)) mapInstance.removeSource(srcId);
-      return;
-    }
+    if (mapInstance.getLayer(outlineId)) mapInstance.removeLayer(outlineId);
+    if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId);
+    if (mapInstance.getSource(srcId)) mapInstance.removeSource(srcId);
+
+    if (!highlightPolygon) return;
 
     const geojson: GeoFeature = { type: 'Feature', properties: {}, geometry: highlightPolygon };
-    if (mapInstance.getSource(srcId)) {
-      (mapInstance.getSource(srcId) as maplibregl.GeoJSONSource).setData(geojson);
-    } else {
-      mapInstance.addSource(srcId, { type: 'geojson', data: geojson });
-      mapInstance.addLayer({
-        id: layerId,
-        type: 'fill-extrusion',
-        source: srcId,
-        paint: {
-          'fill-extrusion-color': '#ffcc00',
-          'fill-extrusion-height': 25,
-          'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.8,
-        },
-      });
-    }
-        const coords = highlightPolygon.coordinates[0];
+    mapInstance.addSource(srcId, { type: 'geojson', data: geojson });
+
+    mapInstance.addLayer({
+      id: layerId,
+      type: 'fill-extrusion',
+      source: srcId,
+      paint: {
+        'fill-extrusion-color': '#ffcc00',
+        'fill-extrusion-height': 20,
+        'fill-extrusion-base': 0,
+        'fill-extrusion-opacity': 0.85,
+      },
+    });
+
+    mapInstance.addLayer({
+      id: outlineId,
+      type: 'line',
+      source: srcId,
+      paint: {
+        'line-color': '#ffcc00',
+        'line-width': 3,
+        'line-opacity': 1,
+      },
+    });
+
+    const coords = highlightPolygon.coordinates[0];
     if (coords.length > 1) {
       const bounds = new maplibregl.LngLatBounds();
       coords.forEach((c) => bounds.extend([c[0], c[1]] as [number, number]));
-      mapInstance.fitBounds(bounds, { padding: 100, duration: 800, maxZoom: 17 });
+      mapInstance.fitBounds(bounds, {
+        padding: { top: 80, bottom: 260, left: 60, right: 60 },
+        duration: 900,
+        maxZoom: 17.5,
+        pitch: 55,
+      });
     }
   }, [highlightPolygon]);
 
@@ -378,7 +392,6 @@ function App() {
     setSelectedDetail(null);
     setIsSpeaking(false);
     setSheetOpen(false);
-    setShowPanorama(false);
     stopSpeech();
 
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
@@ -397,8 +410,10 @@ function App() {
     setRouteSteps([]);
     setCurrentInstruction(null);
     setHighlightPolygon(null);
-    setShowPanorama(false);
     setIsSpeaking(false);
+    if (map.current) {
+      map.current.easeTo({ pitch: 0, duration: 500 });
+    }
   };
 
   const findNextNearest = (): { props: Record<string, string>; coords: [number, number] } | null => {
@@ -670,7 +685,14 @@ function App() {
 
               <div className="nav-btn-row">
                 <button className="nav-btn nav-btn-primary" onClick={() => setNavArrived(true)}>Я на месте</button>
-                <button className="nav-btn nav-btn-secondary" onClick={() => setShowPanorama(true)}>📸 Панорама</button>
+                <a
+                  className="nav-btn nav-btn-secondary"
+                  href={`https://yandex.ru/maps/?panorama[point]=${navTarget.coords[0]},${navTarget.coords[1]}`}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  📸 Панорама
+                </a>
               </div>
             </>
           ) : (
@@ -689,28 +711,20 @@ function App() {
                 </div>
               )}
               <div className="nav-btn-row">
-                <button className="nav-btn nav-btn-secondary" onClick={() => speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false))}>{isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}</button>
+                <button className="nav-btn nav-btn-secondary" onClick={() => { if (isSpeaking) { stopSpeech(); setIsSpeaking(false); } else speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false)); }}>{isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}</button>
                 <button className="nav-btn nav-btn-primary" onClick={handleNext}>→ Дальше</button>
               </div>
-              <button className="nav-btn nav-btn-secondary" style={{ marginTop: 8, width: '100%' }} onClick={() => setShowPanorama(true)}>📸 Панорама 360°</button>
+              <a
+                className="nav-btn nav-btn-secondary"
+                style={{ marginTop: 8, width: '100%', display: 'block', textAlign: 'center' }}
+                href={`https://yandex.ru/maps/?panorama[point]=${navTarget.coords[0]},${navTarget.coords[1]}`}
+                target="_blank"
+                rel="noopener"
+              >
+                📸 Панорама 360°
+              </a>
             </>
           )}
-        </div>
-      )}
-
-      {showPanorama && navTarget && (
-        <div className="panorama-overlay" onClick={() => setShowPanorama(false)}>
-          <div className="panorama-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="panorama-close" onClick={() => setShowPanorama(false)}>×</button>
-            <iframe
-              title="Панорама"
-              src={`https://yandex.ru/map-widget/v1/?panorama[point]=${navTarget.coords[0]},${navTarget.coords[1]}&panorama[direction]=${arrowRotation}`}
-              width="100%"
-              height="100%"
-              frameBorder="0"
-              allowFullScreen
-            />
-          </div>
         </div>
       )}
 
