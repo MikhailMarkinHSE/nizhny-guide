@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Polygon, Feature as GeoFeature } from 'geojson';
 import * as maplibregl from 'maplibre-gl';
 import { setWorkerUrl } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
@@ -15,19 +16,10 @@ type DetailData = {
   facts: { label: string; value: string }[]; img: string | null; links: { url: string; label: string }[];
   props: Record<string, string>; coords: [number, number];
 };
-type NavTarget = { props: Record<string, string>; coords: [number, number]; title: string; text: string; img: string | null; };
+type NavTarget = { props: Record<string, string>; coords: [number, number]; title: string; text: string; img: string | null; osmId: string | null; };
 
-type RouteStep = {
-  type: string;
-  modifier?: string;
-  location: [number, number];
-  name: string;
-};
-type RouteGeoJSON = {
-  type: 'Feature';
-  properties: Record<string, any>;
-  geometry: { type: 'LineString'; coordinates: [number, number][] };
-};
+type RouteStep = { type: string; modifier?: string; location: [number, number]; name: string; };
+type RouteGeoJSON = { type: 'Feature'; properties: Record<string, any>; geometry: { type: 'LineString'; coordinates: [number, number][] } };
 
 function extractQId(url: string): string | null { const m = url.match(/Q\d+$/); return m ? m[0] : null; }
 function formatYear(date: string): string { const m = date.match(/^(-?\d{1,4})/); return m ? m[1] : date; }
@@ -55,10 +47,8 @@ function getObjectType(props: Record<string, string>): 'building' | 'memorial' |
 function translateManeuver(step: RouteStep): string {
   const street = step.name ? ` на ${step.name}` : '';
   const mod = step.modifier || '';
-
   if (step.type === 'depart') return 'Начните движение';
   if (step.type === 'arrive') return 'Вы на месте';
-
   if (step.type === 'turn') {
     if (mod.includes('slight left')) return `Плавно поверните налево${street}`;
     if (mod.includes('slight right')) return `Плавно поверните направо${street}`;
@@ -68,7 +58,6 @@ function translateManeuver(step: RouteStep): string {
   }
   if (step.type === 'new name') return `Продолжайте движение${street}`;
   if (step.type === 'roundabout' || step.type === 'rotary') return `Войдите на круг${street}`;
-
   return `Продолжайте движение${street}`;
 }
 
@@ -79,7 +68,6 @@ async function fetchWalkingRoute(from: [number, number], to: [number, number]): 
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.routes?.[0]?.geometry) return null;
-
     const route = data.routes[0];
     const steps: RouteStep[] = route.legs[0].steps.map((s: any) => ({
       type: s.maneuver.type,
@@ -87,18 +75,27 @@ async function fetchWalkingRoute(from: [number, number], to: [number, number]): 
       location: s.maneuver.location,
       name: s.name,
     }));
-
     return {
-      geo: {
-        type: 'Feature',
-        properties: { distance: route.distance, duration: route.duration },
-        geometry: route.geometry,
-      },
+      geo: { type: 'Feature', properties: { distance: route.distance, duration: route.duration }, geometry: route.geometry },
       steps
     };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
+}
+
+async function fetchBuildingPolygon(osmId: string): Promise<Polygon | null> {
+  try {
+    const [type, id] = osmId.split('/');
+    if (type !== 'way' && type !== 'relation') return null;
+    const query = `[out:json];${type}(${id});out geom;`;
+    const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const element = data.elements?.[0];
+    if (!element || !element.geometry) return null;
+    const coords: [number, number][] = element.geometry.map((p: any) => [p.lon, p.lat]);
+    if (coords.length > 0) coords.push(coords[0]);
+    return { type: 'Polygon', coordinates: [coords] };
+  } catch { return null; }
 }
 
 function cleanTextForSpeech(text: string): string {
@@ -154,17 +151,14 @@ function buildDetailData(
   const title = wd?.label || props.name || props['name:ru'] || `${props['addr:street'] || ''} ${props['addr:housenumber'] || ''}`.trim() || (type === 'memorial' ? 'Мемориал' : 'Историческое место');
   const style = wd?.style || props['building:architecture'];
   const styleBadge = style || null;
-
   let mainStory = '';
   if (wp?.extract) mainStory = wp.extract.length > 500 ? wp.extract.slice(0, 500).trim() + '…' : wp.extract;
   else if (story) mainStory = story;
   else if (props.description) mainStory = props.description;
   else if (props.inscription) mainStory = `«${props.inscription}»`;
   else mainStory = generateFallbackStory(props, type);
-
   const spokenText = `${title}. ${mainStory}`;
   const facts: { label: string; value: string }[] = [];
-
   if (type === 'building') {
     const year = wd?.inception || props['year_of_construction'] || props.start_date;
     if (year) facts.push({ label: 'Год', value: formatYear(year) });
@@ -175,12 +169,10 @@ function buildDetailData(
   if (type === 'memorial' && props['memorial:subject']) facts.push({ label: 'Посвящён', value: props['memorial:subject'] });
   if (props['addr:street']) facts.push({ label: 'Адрес', value: `${props['addr:street']}, ${props['addr:housenumber'] || ''}` });
   if (props['heritage:name'] || props.heritage) facts.push({ label: 'Наследие', value: props['heritage:name'] || props.heritage || '' });
-
   const img = wd?.image || wp?.thumbnail || null;
   const links: { url: string; label: string }[] = [];
   if (wd?.article) links.push({ url: wd.article, label: 'Википедия →' });
   else if (wp?.url) links.push({ url: wp.url, label: 'Читать полностью →' });
-
   return { title, styleBadge, story: mainStory, spokenText, facts, img, links, props, coords };
 }
 
@@ -206,6 +198,9 @@ function App() {
   const [routeLoading, setRouteLoading] = useState(false);
   const [currentInstruction, setCurrentInstruction] = useState<{ text: string; distance: number } | null>(null);
 
+  const [highlightPolygon, setHighlightPolygon] = useState<Polygon | null>(null);
+  const [showPanorama, setShowPanorama] = useState(false);
+
   const featuresRef = useRef<any[]>([]);
   const hasAutoOpenedSheet = useRef(false);
   const visitedIds = useRef<Set<string>>(new Set());
@@ -216,34 +211,23 @@ function App() {
 
   useEffect(() => {
     if (!navTarget) return;
-
     navWatchId.current = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setNavPos([longitude, latitude]);
-
         const d = haversine(latitude, longitude, navTarget.coords[1], navTarget.coords[0]);
         setNavDistance(d);
         if (d < 20 && !navArrived) setNavArrived(true);
-
         if (routeSteps.length > 0) {
           let closestStep: RouteStep | null = null;
           let minStepDist = Infinity;
-
           for (const step of routeSteps) {
             const stepDist = haversine(latitude, longitude, step.location[1], step.location[0]);
-            if (stepDist < minStepDist) {
-              minStepDist = stepDist;
-              closestStep = step;
-            }
+            if (stepDist < minStepDist) { minStepDist = stepDist; closestStep = step; }
           }
-
           if (closestStep) {
-            if (d < minStepDist) {
-              setCurrentInstruction({ text: 'Вы почти на месте', distance: d });
-            } else {
-              setCurrentInstruction({ text: translateManeuver(closestStep), distance: minStepDist });
-            }
+            if (d < minStepDist) setCurrentInstruction({ text: 'Вы почти на месте', distance: d });
+            else setCurrentInstruction({ text: translateManeuver(closestStep), distance: minStepDist });
           }
         }
       },
@@ -266,20 +250,17 @@ function App() {
     };
     window.addEventListener('deviceorientationabsolute', absHandler);
     window.addEventListener('deviceorientation', relHandler);
-
     return () => {
       if (navWatchId.current !== null) { navigator.geolocation.clearWatch(navWatchId.current); navWatchId.current = null; }
       window.removeEventListener('deviceorientationabsolute', absHandler);
       window.removeEventListener('deviceorientation', relHandler);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navTarget, routeSteps, navArrived]);
 
   useEffect(() => {
     if (!navTarget) {
-      setRouteData(null);
-      setRouteSteps([]);
-      setCurrentInstruction(null);
+      setRouteData(null); setRouteSteps([]); setCurrentInstruction(null);
+      setHighlightPolygon(null);
       return;
     }
     let cancelled = false;
@@ -290,39 +271,34 @@ function App() {
         const from: [number, number] = [pos.coords.longitude, pos.coords.latitude];
         const routeRes = await fetchWalkingRoute(from, navTarget.coords);
         if (!cancelled) {
-          if (routeRes) {
-            setRouteData(routeRes.geo);
-            setRouteSteps(routeRes.steps);
-          }
+          if (routeRes) { setRouteData(routeRes.geo); setRouteSteps(routeRes.steps); }
           setRouteLoading(false);
         }
       },
       async () => {
         if (userPos) {
           const routeRes = await fetchWalkingRoute(userPos, navTarget.coords);
-          if (!cancelled) {
-            if (routeRes) {
-              setRouteData(routeRes.geo);
-              setRouteSteps(routeRes.steps);
-            }
-            setRouteLoading(false);
-          }
-        } else {
-          if (!cancelled) setRouteLoading(false);
-        }
+          if (!cancelled) { if (routeRes) { setRouteData(routeRes.geo); setRouteSteps(routeRes.steps); } setRouteLoading(false); }
+        } else { if (!cancelled) setRouteLoading(false); }
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
 
+    if (navTarget.osmId) {
+      fetchBuildingPolygon(navTarget.osmId).then((poly) => {
+        if (!cancelled) setHighlightPolygon(poly);
+      });
+    } else {
+      setHighlightPolygon(null);
+    }
+
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navTarget]);
 
   useEffect(() => {
     if (!map.current) return;
     const source = map.current.getSource('route') as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
-
     if (routeData) {
       source.setData(routeData);
       const coords = routeData.geometry.coordinates;
@@ -337,12 +313,48 @@ function App() {
   }, [routeData]);
 
   useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+    const srcId = 'highlight-building';
+    const layerId = 'highlight-3d';
+
+    if (!highlightPolygon) {
+      if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId);
+      if (mapInstance.getSource(srcId)) mapInstance.removeSource(srcId);
+      return;
+    }
+
+    const geojson: GeoFeature = { type: 'Feature', properties: {}, geometry: highlightPolygon };
+    if (mapInstance.getSource(srcId)) {
+      (mapInstance.getSource(srcId) as maplibregl.GeoJSONSource).setData(geojson);
+    } else {
+      mapInstance.addSource(srcId, { type: 'geojson', data: geojson });
+      mapInstance.addLayer({
+        id: layerId,
+        type: 'fill-extrusion',
+        source: srcId,
+        paint: {
+          'fill-extrusion-color': '#ffcc00',
+          'fill-extrusion-height': 25,
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.8,
+        },
+      });
+    }
+        const coords = highlightPolygon.coordinates[0];
+    if (coords.length > 1) {
+      const bounds = new maplibregl.LngLatBounds();
+      coords.forEach((c) => bounds.extend([c[0], c[1]] as [number, number]));
+      mapInstance.fitBounds(bounds, { padding: 100, duration: 800, maxZoom: 17 });
+    }
+  }, [highlightPolygon]);
+
+  useEffect(() => {
     if (navArrived && navTarget) {
       speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false));
       const id = navTarget.props['@id'] || (navTarget.props as any).id;
       if (id) visitedIds.current.add(id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navArrived]);
 
   useEffect(() => {
@@ -357,14 +369,16 @@ function App() {
     const id = props['@id'] || (props as any).id;
     const story = id ? storiesMapRef.current[id] : undefined;
     const data = buildDetailData(props, wd, wp, story, coords);
+    const osmId = props['@id'] || (props as any).id || null;
 
-    setNavTarget({ props, coords, title: data.title, text: data.spokenText, img: data.img });
+    setNavTarget({ props, coords, title: data.title, text: data.spokenText, img: data.img, osmId });
     setNavArrived(false);
     setNavPos(null);
     setNavDistance(null);
     setSelectedDetail(null);
     setIsSpeaking(false);
-    setSheetOpen(false); // Закрываем шторку при старте
+    setSheetOpen(false);
+    setShowPanorama(false);
     stopSpeech();
 
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
@@ -382,6 +396,8 @@ function App() {
     setRouteData(null);
     setRouteSteps([]);
     setCurrentInstruction(null);
+    setHighlightPolygon(null);
+    setShowPanorama(false);
     setIsSpeaking(false);
   };
 
@@ -452,24 +468,9 @@ function App() {
     map.current.on('load', async () => {
       const mapInstance = map.current!;
 
-      mapInstance.addSource('route', {
-        type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } },
-      });
-      mapInstance.addLayer({
-        id: 'route-outline',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#000000', 'line-width': 9, 'line-opacity': 0.6 },
-      });
-      mapInstance.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#e63946', 'line-width': 5, 'line-opacity': 0.95 },
-      });
+      mapInstance.addSource('route', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } } });
+      mapInstance.addLayer({ id: 'route-outline', type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#000000', 'line-width': 9, 'line-opacity': 0.6 } });
+      mapInstance.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#e63946', 'line-width': 5, 'line-opacity': 0.95 } });
 
       try {
         const [osmRes, wdRes, wpRes, llmRes] = await Promise.all([
@@ -509,37 +510,10 @@ function App() {
 
         mapInstance.addSource('historic', { type: 'geojson', data: filtered, cluster: true, clusterRadius: 50, clusterMaxZoom: 15 });
 
-        mapInstance.addLayer({
-          id: 'clusters', type: 'circle', source: 'historic', filter: ['has', 'point_count'],
-          paint: {
-            'circle-color': ['step', ['get', 'point_count'], '#e63946', 10, '#f77f00', 30, '#d62828'],
-            'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 30, 28],
-            'circle-stroke-width': 1.5,
-            'circle-stroke-color': '#000000',
-            'circle-opacity': 0.95,
-          },
-        });
-
-        mapInstance.addLayer({
-          id: 'cluster-count', type: 'symbol', source: 'historic', filter: ['has', 'point_count'],
-          layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 13 },
-          paint: { 'text-color': '#000000' },
-        });
-
-        mapInstance.addLayer({
-          id: 'unclustered-point-bg', type: 'circle', source: 'historic', filter: ['!', ['has', 'point_count']],
-          paint: {
-            'circle-color': ['case', ['has', 'memorial'], '#3a86ff', '#e63946'],
-            'circle-radius': 13,
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#000000',
-          },
-        });
-
-        mapInstance.addLayer({
-          id: 'unclustered-point-icon', type: 'symbol', source: 'historic', filter: ['!', ['has', 'point_count']],
-          layout: { 'text-field': ['case', ['has', 'memorial'], '🕯', '🏛'], 'text-size': 13, 'text-allow-overlap': true },
-        });
+        mapInstance.addLayer({ id: 'clusters', type: 'circle', source: 'historic', filter: ['has', 'point_count'], paint: { 'circle-color': ['step', ['get', 'point_count'], '#e63946', 10, '#f77f00', 30, '#d62828'], 'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 30, 28], 'circle-stroke-width': 1.5, 'circle-stroke-color': '#000000', 'circle-opacity': 0.95 } });
+        mapInstance.addLayer({ id: 'cluster-count', type: 'symbol', source: 'historic', filter: ['has', 'point_count'], layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 13 }, paint: { 'text-color': '#000000' } });
+        mapInstance.addLayer({ id: 'unclustered-point-bg', type: 'circle', source: 'historic', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': ['case', ['has', 'memorial'], '#3a86ff', '#e63946'], 'circle-radius': 13, 'circle-stroke-width': 2, 'circle-stroke-color': '#000000' } });
+        mapInstance.addLayer({ id: 'unclustered-point-icon', type: 'symbol', source: 'historic', filter: ['!', ['has', 'point_count']], layout: { 'text-field': ['case', ['has', 'memorial'], '🕯', '🏛'], 'text-size': 13, 'text-allow-overlap': true } });
 
         mapInstance.on('click', 'clusters', (e) => {
           const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['clusters'] });
@@ -564,15 +538,8 @@ function App() {
         }
 
         mapInstance.on('click', (e) => {
-          const features = mapInstance.queryRenderedFeatures(e.point, {
-            layers: ['clusters', 'unclustered-point-bg', 'unclustered-point-icon'],
-          });
-          if (features.length === 0) {
-            stopSpeech();
-            setIsSpeaking(false);
-            setSelectedDetail(null);
-            setSheetOpen(false);
-          }
+          const features = mapInstance.queryRenderedFeatures(e.point, { layers: ['clusters', 'unclustered-point-bg', 'unclustered-point-icon'] });
+          if (features.length === 0) { stopSpeech(); setIsSpeaking(false); setSelectedDetail(null); setSheetOpen(false); }
         });
 
         geolocate.on('geolocate', (e: any) => {
@@ -584,8 +551,6 @@ function App() {
         });
       } catch (err) { console.error('Ошибка загрузки данных:', err); }
     });
-
-    return () => {};
   }, []);
 
   const handleNearbyClick = (item: NearbyItem) => {
@@ -613,11 +578,7 @@ function App() {
                       <div className="nearby-title">{title}</div>
                       <div className="nearby-distance">{isMemorial ? '🕯 ' : '🏛 '}{formatDistance(item.distance)}</div>
                     </div>
-                    <button
-                      className="nearby-nav-btn"
-                      onClick={(e) => { e.stopPropagation(); handleStartNav(item.props, item.coords); }}
-                      title="Хочу сюда"
-                    >🧭</button>
+                    <button className="nearby-nav-btn" onClick={(e) => { e.stopPropagation(); handleStartNav(item.props, item.coords); }} title="Хочу сюда">🧭</button>
                   </div>
                 </li>
               );
@@ -644,7 +605,6 @@ function App() {
         <div ref={mapContainer} className="map" />
       </div>
 
-      {/* Показываем шторку ТОЛЬКО если не включена навигация */}
       {!navTarget && (
         <div className={`sheet ${sheetOpen ? 'sheet-open' : ''}`}>
           <button className="sheet-handle" onClick={() => setSheetOpen((v) => !v)}>{sheetOpen ? '▼' : '▲'} Рядом с тобой</button>
@@ -661,40 +621,17 @@ function App() {
               {selectedDetail.styleBadge && <span className="badge">{selectedDetail.styleBadge}</span>}
             </div>
             <p className="detail-story">{selectedDetail.story}</p>
-
             <div className="detail-actions">
-              <button className="popup-nav-btn" onClick={() => handleStartNav(selectedDetail.props, selectedDetail.coords)}>
-                🧭 Хочу сюда
-              </button>
-              <button
-                className="detail-speak-btn"
-                onClick={() => {
-                  if (isSpeaking) { stopSpeech(); setIsSpeaking(false); }
-                  else speakText(selectedDetail.spokenText, () => setIsSpeaking(true), () => setIsSpeaking(false));
-                }}
-              >
-                {isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}
-              </button>
+              <button className="popup-nav-btn" onClick={() => handleStartNav(selectedDetail.props, selectedDetail.coords)}>🧭 Хочу сюда</button>
+              <button className="detail-speak-btn" onClick={() => { if (isSpeaking) { stopSpeech(); setIsSpeaking(false); } else speakText(selectedDetail.spokenText, () => setIsSpeaking(true), () => setIsSpeaking(false)); }}>{isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}</button>
             </div>
-
             {(selectedDetail.facts.length > 0 || selectedDetail.img || selectedDetail.links.length > 0) && (
               <details className="popup-details">
                 <summary>Подробнее</summary>
                 <div className="popup-facts">
                   {selectedDetail.img && <img className="popup-image" src={selectedDetail.img} alt="" />}
-                  {selectedDetail.facts.map((f, i) => (
-                    <div key={i} className="fact">
-                      <span className="fact-label">{f.label}</span>
-                      <span className="fact-value">{f.value}</span>
-                    </div>
-                  ))}
-                  {selectedDetail.links.length > 0 && (
-                    <div className="popup-links">
-                      {selectedDetail.links.map((l, i) => (
-                        <a key={i} href={l.url} target="_blank" rel="noopener">{l.label}</a>
-                      ))}
-                    </div>
-                  )}
+                  {selectedDetail.facts.map((f, i) => (<div key={i} className="fact"><span className="fact-label">{f.label}</span><span className="fact-value">{f.value}</span></div>))}
+                  {selectedDetail.links.length > 0 && (<div className="popup-links">{selectedDetail.links.map((l, i) => (<a key={i} href={l.url} target="_blank" rel="noopener">{l.label}</a>))}</div>)}
                 </div>
               </details>
             )}
@@ -721,19 +658,20 @@ function App() {
                 <button className="nav-x-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
               </div>
 
+              {navTarget.img && (
+                <div className="nav-thumb">
+                  <img src={navTarget.img} alt="" />
+                </div>
+              )}
+
               <div className="nav-instr">
-                {routeLoading ? (
-                  <span className="nav-instr-loading">Строим маршрут...</span>
-                ) : currentInstruction ? (
-                  <><b>{formatDistance(currentInstruction.distance)}</b> · {currentInstruction.text}</>
-                ) : (
-                  <span>Идите по красной линии на карте</span>
-                )}
+                {routeLoading ? (<span className="nav-instr-loading">Строим маршрут...</span>) : currentInstruction ? (<><b>{formatDistance(currentInstruction.distance)}</b> · {currentInstruction.text}</>) : (<span>Идите по красной линии на карте</span>)}
               </div>
 
-              <button className="nav-btn nav-btn-primary nav-btn-full" onClick={() => setNavArrived(true)}>
-                Я на месте
-              </button>
+              <div className="nav-btn-row">
+                <button className="nav-btn nav-btn-primary" onClick={() => setNavArrived(true)}>Я на месте</button>
+                <button className="nav-btn nav-btn-secondary" onClick={() => setShowPanorama(true)}>📸 Панорама</button>
+              </div>
             </>
           ) : (
             <>
@@ -745,26 +683,34 @@ function App() {
                 </div>
                 <button className="nav-x-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
               </div>
-                            <div className="nav-btn-row">
-                <button
-                  className="nav-btn nav-btn-secondary"
-                  onClick={() => {
-                    if (isSpeaking) {
-                      stopSpeech();
-                      setIsSpeaking(false);
-                    } else {
-                      speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false));
-                    }
-                  }}
-                >
-                  {isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}
-                </button>
-                <button className="nav-btn nav-btn-primary" onClick={handleNext}>
-                  → Дальше
-                </button>
+              {navTarget.img && (
+                <div className="nav-thumb nav-thumb-large">
+                  <img src={navTarget.img} alt="" />
+                </div>
+              )}
+              <div className="nav-btn-row">
+                <button className="nav-btn nav-btn-secondary" onClick={() => speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false))}>{isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}</button>
+                <button className="nav-btn nav-btn-primary" onClick={handleNext}>→ Дальше</button>
               </div>
+              <button className="nav-btn nav-btn-secondary" style={{ marginTop: 8, width: '100%' }} onClick={() => setShowPanorama(true)}>📸 Панорама 360°</button>
             </>
           )}
+        </div>
+      )}
+
+      {showPanorama && navTarget && (
+        <div className="panorama-overlay" onClick={() => setShowPanorama(false)}>
+          <div className="panorama-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="panorama-close" onClick={() => setShowPanorama(false)}>×</button>
+            <iframe
+              title="Панорама"
+              src={`https://yandex.ru/map-widget/v1/?panorama[point]=${navTarget.coords[0]},${navTarget.coords[1]}&panorama[direction]=${arrowRotation}`}
+              width="100%"
+              height="100%"
+              frameBorder="0"
+              allowFullScreen
+            />
+          </div>
         </div>
       )}
 
@@ -774,13 +720,7 @@ function App() {
             <button className="menu-close" onClick={() => setMenuOpen(false)}>×</button>
             <h2 className="menu-title">Меню</h2>
             <button className="menu-item" onClick={() => { setMenuOpen(false); setShowWelcome(true); }}>О приложении</button>
-            <button className="menu-item" onClick={() => {
-              if (confirm('Сбросить кэш? Приложение перезагрузится.')) {
-                localStorage.clear();
-                if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
-                setTimeout(() => window.location.reload(), 300);
-              }
-            }}>Сбросить кэш</button>
+            <button className="menu-item" onClick={() => { if (confirm('Сбросить кэш? Приложение перезагрузится.')) { localStorage.clear(); if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())); setTimeout(() => window.location.reload(), 300); } }}>Сбросить кэш</button>
           </div>
         </div>
       )}
