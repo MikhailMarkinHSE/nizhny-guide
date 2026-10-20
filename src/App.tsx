@@ -70,10 +70,7 @@ async function fetchWalkingRoute(from: [number, number], to: [number, number]): 
     if (!data.routes?.[0]?.geometry) return null;
     const route = data.routes[0];
     const steps: RouteStep[] = route.legs[0].steps.map((s: any) => ({
-      type: s.maneuver.type,
-      modifier: s.maneuver.modifier,
-      location: s.maneuver.location,
-      name: s.name,
+      type: s.maneuver.type, modifier: s.maneuver.modifier, location: s.maneuver.location, name: s.name,
     }));
     return {
       geo: { type: 'Feature', properties: { distance: route.distance, duration: route.duration }, geometry: route.geometry },
@@ -82,20 +79,51 @@ async function fetchWalkingRoute(from: [number, number], to: [number, number]): 
   } catch { return null; }
 }
 
+// Запрос полигона через Overpass — с несколькими зеркалами на случай блокировки
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.openstreetmap.ru/api/interpreter',
+];
+
 async function fetchBuildingPolygon(osmId: string): Promise<Polygon | null> {
-  try {
-    const [type, id] = osmId.split('/');
-    if (type !== 'way' && type !== 'relation') return null;
-    const query = `[out:json];${type}(${id});out geom;`;
-    const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const element = data.elements?.[0];
-    if (!element || !element.geometry) return null;
-    const coords: [number, number][] = element.geometry.map((p: any) => [p.lon, p.lat]);
-    if (coords.length > 0) coords.push(coords[0]);
-    return { type: 'Polygon', coordinates: [coords] };
-  } catch { return null; }
+  const [type, id] = osmId.split('/');
+  if (type !== 'way' && type !== 'relation') {
+    console.warn('[3D] Неверный osmId:', osmId);
+    return null;
+  }
+
+  const query = `[out:json][timeout:15];${type}(${id});out geom;`;
+
+  for (const mirror of OVERPASS_MIRRORS) {
+    try {
+      console.log(`[3D] Запрос к ${mirror} для ${osmId}`);
+      const res = await fetch(`${mirror}?data=${encodeURIComponent(query)}`);
+      if (!res.ok) {
+        console.warn(`[3D] ${mirror} вернул ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      const element = data.elements?.[0];
+      if (!element?.geometry) {
+        console.warn(`[3D] ${mirror} не вернул геометрию`, element);
+        continue;
+      }
+      const coords: [number, number][] = element.geometry.map((p: any) => [p.lon, p.lat]);
+      if (coords.length < 3) {
+        console.warn(`[3D] Мало точек (${coords.length}), пропускаем`);
+        continue;
+      }
+      coords.push(coords[0]); // замыкаем
+      console.log(`[3D] Успех через ${mirror}, точек: ${coords.length}`);
+      return { type: 'Polygon', coordinates: [coords] };
+    } catch (e) {
+      console.warn(`[3D] Ошибка с ${mirror}:`, e);
+    }
+  }
+
+  console.error('[3D] Все зеркала Overpass не ответили');
+  return null;
 }
 
 function cleanTextForSpeech(text: string): string {
@@ -288,6 +316,7 @@ function App() {
         if (!cancelled) setHighlightPolygon(poly);
       });
     } else {
+      console.warn('[3D] У объекта нет osmId, пропускаем 3D');
       setHighlightPolygon(null);
     }
 
@@ -300,12 +329,6 @@ function App() {
     if (!source) return;
     if (routeData) {
       source.setData(routeData);
-      const coords = routeData.geometry.coordinates;
-      if (coords.length > 1) {
-        const bounds = new maplibregl.LngLatBounds();
-        coords.forEach((c) => bounds.extend([c[0], c[1]] as [number, number]));
-        map.current.fitBounds(bounds, { padding: { top: 80, bottom: 200, left: 40, right: 40 }, duration: 900 });
-      }
     } else {
       source.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } });
     }
@@ -324,6 +347,8 @@ function App() {
 
     if (!highlightPolygon) return;
 
+    console.log('[3D] Добавляем полигон на карту');
+
     const geojson: GeoFeature = { type: 'Feature', properties: {}, geometry: highlightPolygon };
     mapInstance.addSource(srcId, { type: 'geojson', data: geojson });
 
@@ -332,8 +357,8 @@ function App() {
       type: 'fill-extrusion',
       source: srcId,
       paint: {
-        'fill-extrusion-color': '#ffcc00',
-        'fill-extrusion-height': 20,
+        'fill-extrusion-color': '#00e5ff', // яркий циан — после CSS-инверсии карты станет заметным
+        'fill-extrusion-height': 25,
         'fill-extrusion-base': 0,
         'fill-extrusion-opacity': 0.85,
       },
@@ -344,22 +369,31 @@ function App() {
       type: 'line',
       source: srcId,
       paint: {
-        'line-color': '#ffcc00',
+        'line-color': '#00e5ff',
         'line-width': 3,
-        'line-opacity': 1,
       },
     });
 
+    // Рассчитываем границы полигона
     const coords = highlightPolygon.coordinates[0];
     if (coords.length > 1) {
       const bounds = new maplibregl.LngLatBounds();
       coords.forEach((c) => bounds.extend([c[0], c[1]] as [number, number]));
+
+      // fitBounds с наклоном + затем принудительный pitch
       mapInstance.fitBounds(bounds, {
         padding: { top: 80, bottom: 260, left: 60, right: 60 },
         duration: 900,
-        maxZoom: 17.5,
-        pitch: 55,
+        maxZoom: 17,
       });
+
+      // Через 300 мс (когда начнём двигаться) явно ставим pitch
+      setTimeout(() => {
+        if (map.current) {
+          map.current.setPitch(55);
+          map.current.triggerRepaint();
+        }
+      }, 300);
     }
   }, [highlightPolygon]);
 
@@ -673,12 +707,6 @@ function App() {
                 <button className="nav-x-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
               </div>
 
-              {navTarget.img && (
-                <div className="nav-thumb">
-                  <img src={navTarget.img} alt="" />
-                </div>
-              )}
-
               <div className="nav-instr">
                 {routeLoading ? (<span className="nav-instr-loading">Строим маршрут...</span>) : currentInstruction ? (<><b>{formatDistance(currentInstruction.distance)}</b> · {currentInstruction.text}</>) : (<span>Идите по красной линии на карте</span>)}
               </div>
@@ -705,11 +733,6 @@ function App() {
                 </div>
                 <button className="nav-x-btn" onClick={handleCloseNav} aria-label="Закрыть">×</button>
               </div>
-              {navTarget.img && (
-                <div className="nav-thumb nav-thumb-large">
-                  <img src={navTarget.img} alt="" />
-                </div>
-              )}
               <div className="nav-btn-row">
                 <button className="nav-btn nav-btn-secondary" onClick={() => { if (isSpeaking) { stopSpeech(); setIsSpeaking(false); } else speakText(navTarget.text, () => setIsSpeaking(true), () => setIsSpeaking(false)); }}>{isSpeaking ? '⏸ Пауза' : '🔊 Слушать'}</button>
                 <button className="nav-btn nav-btn-primary" onClick={handleNext}>→ Дальше</button>
